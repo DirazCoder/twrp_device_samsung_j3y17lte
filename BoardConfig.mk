@@ -70,6 +70,22 @@ TARGET_KERNEL_HEADER_ARCH:= arm64
 TARGET_KERNEL_SOURCE     := kernel/samsung/j3y17lte     # point this at exynos7570-j3y17lte-kernel-source
 TARGET_KERNEL_CONFIG     := exynos7570-j3y17lte_defconfig   # VERIFIED exact filename, confirmed present in Samsung's own GPL source drop
 TARGET_KERNEL_ADDITIONAL_FLAGS := ANDROID_MAJOR_VERSION=p    # VERIFIED, per Samsung's own README_Kernel.txt build instructions
+
+# Board revision / DTS variant — VERIFIED directly from real hardware.
+# Read on-device via `adb shell` while booted into the working recovery:
+#   /proc/device-tree/model_info-hw_rev     = <4>   (decimal)
+#   /proc/device-tree/model_info-hw_rev_end = <255> (decimal)
+# Cross-checked against Samsung's GPL kernel source, where each DTS
+# variant declares its own hw_rev/hw_rev_end range:
+#   _00: hw_rev 0,   hw_rev_end 0
+#   _01: hw_rev 1,   hw_rev_end 1
+#   _02: hw_rev 2,   hw_rev_end 3
+#   _04: hw_rev 4,   hw_rev_end 255   <-- exact match to this device
+# This device is confirmed exynos7570-j3y17lte_eur_open_04.dts — not a
+# guess, not a default, read straight off real hardware via the device
+# tree and matched against source. Use this DTB, not any other variant.
+TARGET_KERNEL_DTB_PATH   := arch/arm64/boot/dts/exynos7570-j3y17lte_eur_open_04.dtb
+TARGET_KERNEL_DTB_NAME   := exynos7570-j3y17lte_eur_open_04
 # Kernel source version: Linux 3.18.91 ("Diseased Newt") — VERIFIED from
 # source Makefile. Vendor kernel version does not need to match Android
 # version; this is expected and correct for this SoC generation.
@@ -130,26 +146,17 @@ TARGET_USES_LOGD           := true    # matches presence of standard logd-era in
 TWRP_INCLUDE_LOGCAT        := true
 
 # ------------------------------------------------------------------------
-# STILL GENUINELY OPEN — even with real kernel source in hand:
-#   - Which numbered DTS variant matches YOUR exact board revision.
-#     Samsung's source ships FIVE variants for this exact codename:
-#       exynos7570-j3y17lte_eur_open_00.dts
-#       exynos7570-j3y17lte_eur_open_01.dts
-#       exynos7570-j3y17lte_eur_open_02.dts
-#       exynos7570-j3y17lte_eur_open_04.dts
-#       (note: 03 is absent from the source drop)
-#     These appear to be PCB/hardware revision variants across production
-#     runs, not SIM-config variants. Nothing in the DTS model string
-#     distinguishes which one matches a given physical unit — this was
-#     NOT resolvable from source inspection alone. If you know your
-#     device's exact board revision, or can test-boot each variant safely,
-#     that's the only way to confirm. Guessing wrong here risks GPIO/pinctrl
-#     mismatches (wrong buttons, wrong sensor mappings) even if the kernel
-#     still boots.
+# STILL GENUINELY OPEN:
 #   - Graphics/HAL driver specifics beyond what's in this GPL drop (Mali
 #     T720MP2 userspace blobs are proprietary, not included here — GPL
 #     release covers kernel driver only, not the closed userspace blob).
 #   - Exact partition byte sizes (PIT file or live `parted` needed).
 #   - Whether recovery needs any device-specific C++ HAL plugins beyond
 #     what's already proven working in the extracted ramdisk.
+#   - `lunch omni_j3y17lte-eng` has not yet been run against this tree —
+#     structurally correct per AOSP convention, not yet build-confirmed.
+#
+# RESOLVED (previously open, now closed via live device query):
+#   - DTS board-revision variant: confirmed exynos7570-j3y17lte_eur_open_04
+#     via /proc/device-tree/model_info-hw_rev on real hardware. See above.
 # ------------------------------------------------------------------------

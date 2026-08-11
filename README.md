@@ -229,24 +229,34 @@ Samsung J3Y17LTE board based on Exynos7570
 
 The `BoardConfig.mk` in this repo now uses values taken from that source where possible instead of relying on the earlier guesses.
 
-## What's still unknown
+## Resolved since initial publish
 
-Finding Samsung's kernel source closed a big gap, but a few things still can't be determined from the available files alone.
-
-### Board revision
+### Board revision — confirmed
 
 Samsung's source contains four DTS variants for this device:
 
 ```text
-_00
-_01
-_02
-_04
+_00   hw_rev 0,   hw_rev_end 0
+_01   hw_rev 1,   hw_rev_end 1
+_02   hw_rev 2,   hw_rev_end 3
+_04   hw_rev 4,   hw_rev_end 255
 ```
 
 There is no `_03` in the source drop.
 
-The DTS files don't contain enough information to reliably map those revisions to specific physical J330F/FN/G units. That needs to be checked against real hardware.
+The DTS files alone didn't say which variant maps to which physical unit — that had to come from real hardware. Booted into the working recovery on an actual SM-J330F and read the live device tree over `adb shell`:
+
+```bash
+adb shell
+cat /proc/device-tree/model_info-hw_rev       # 4
+cat /proc/device-tree/model_info-hw_rev_end   # 255
+```
+
+That's an exact match to `exynos7570-j3y17lte_eur_open_04.dts` and no other variant. `BoardConfig.mk` now points at that file specifically (`TARGET_KERNEL_DTB_NAME`).
+
+Worth noting for anyone with a different J330F/FN/G unit: this confirms *this specific device's* revision, not that every J330F out there is `_04`. If you're forking this for your own unit, run the same `adb shell` check against your phone before assuming `_04` applies to you too.
+
+## What's still unknown
 
 ### Mali T720MP2 userspace
 
