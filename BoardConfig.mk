@@ -70,6 +70,14 @@ TARGET_CPU_ABI2                :=
 TARGET_CPU_VARIANT           := cortex-a53
 TARGET_CPU_SMP                := true
 
+# Without these, the build system doesn't know this is a 64-bit-only
+# linker target and still schedules a 32-bit system/bin/linker copy step
+# that nothing in an arm64-only tree produces -- that's the actual cause
+# of the "system/bin/linker ... missing and no known rule to make it"
+# ninja failure, not the ABI list.
+TARGET_SUPPORTS_32_BIT_LINKER := false
+TARGET_SUPPORTS_64_BIT_LINKER := true
+
 # 2nd-ARCH block: REMOVED. Checked every file in the extracted ramdisk —
 # sbin/linker (32-bit) is the *only* 32-bit ELF anywhere in the recovery
 # image; no 32-bit .so libraries or executables exist that would need it,
