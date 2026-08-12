@@ -27,7 +27,9 @@ The original Odin tar contains:
 
 ## Why does the recovery say Android 6.0.1?
 
-`recovery_root/default.prop` still reports `ro.build.version.release=6.0.1`, left over from the older Omni 6.0.1-era `omni_j3y17lte` tree this was built from in August 2019. It's stale, not broken — recovery is its own small Linux environment and doesn't inherit the phone's Android version. What actually determines whether it works is kernel hardware support and the fstab partition layout, both of which were patched for the Pie-era setup and confirmed by flashing to a real J330F.
+Yes, really — a device that shipped on Android 7 and got this recovery built for Android 9 has a config file confidently claiming Android 6.0.1. It's not a typo, it's not a hoax, and no, you didn't get sent back in time. `recovery_root/default.prop` just still reports `ro.build.version.release=6.0.1`, left over from the older Omni 6.0.1-era `omni_j3y17lte` tree this was built from in August 2019. Nobody updated the sticker after renovating the house.
+
+It's stale, not broken — recovery is its own small Linux environment and doesn't inherit the phone's Android version. What actually determines whether it works is kernel hardware support and the fstab partition layout, both of which were patched for the Pie-era setup and confirmed by flashing to a real J330F.
 
 ## Extraction method
 
@@ -245,7 +247,7 @@ That's an exact match to `exynos7570-j3y17lte_eur_open_04.dts` and no other vari
 
 Worth noting for anyone with a different J330F/FN/G unit: this confirms *this specific device's* revision, not that every J330F out there is `_04`. If you're forking this for your own unit, run the same `adb shell` check against your phone before assuming `_04` applies to you too.
 
-## Corrected against a real published tree
+## Corrected against a real published tree (aka the "well, that's embarrassing" section)
 
 After this repo's `BoardConfig.mk`/`device.mk`/`Android.mk` were first
 written from the teardown alone, a real published TWRP device tree for
@@ -263,7 +265,11 @@ this repo's files, and three real problems were found and fixed:
 1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were wrong.** This repo had them set
    to arm64 (with arm as a secondary ABI), reasoned from the kernel
    binary genuinely being 64-bit. That reasoning conflated the kernel's
-   architecture with the userspace build target — two different things.
+   architecture with the userspace build target — two different things,
+   and yes, this repo confidently marked "architecture" as VERIFIED
+   before finding that out. Nothing like a good published tree to remind
+   you that "the kernel is 64-bit" and "the build should be 64-bit" are
+   not, in fact, the same sentence.
    The joephyu tree builds a 32-bit-only userspace (`arm`/`armeabi-v7a`)
    on top of the 64-bit kernel, a normal split for this SoC generation.
    Building with the old arm64 setting would very likely have failed at
