@@ -139,6 +139,17 @@ TARGET_USERIMAGES_USE_F2FS  := true
 
 BOARD_CUSTOM_BOOTIMG_MK := $(DEVICE_PATH)/bootimg.mk
 
+# Without this, AOSP's core recovery-ramdisk build tries to package
+# recovery as a binary patch against boot.img (to save space on devices
+# that keep both a real boot and a real recovery partition), which means
+# ninja demands a boot.img target that this tree — Samsung-style, no
+# separate recovery partition, recovery-only build — never produces:
+# "boot.img, needed by ramdisk-recovery.cpio, missing and no known rule
+# to make it". Forcing a full standalone recovery ramdisk avoids needing
+# boot.img at all, which is what an Odin-flashable recovery.img needs
+# anyway (self-contained, not a delta against the boot partition).
+BOARD_USES_FULL_RECOVERY_IMAGE := true
+
 # recovery.fstab — CONFIRMED, this is the fstab extracted directly from
 # recovery_orig.img's ramdisk, with two corrections since made against
 # it: /data now carries flags=encryptable=footer (present in the real
