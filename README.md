@@ -66,33 +66,17 @@ This is a prebuilt kernel taken directly from the working recovery and tested on
 
 ### `recovery/root/`
 
-The complete unpacked recovery ramdisk.
-
-The important parts include:
+The pieces of the unpacked ramdisk that `device.mk` actually copies into a build:
 
 * `etc/recovery.fstab` — the partition map used by recovery.
-* `init.rc`
+* `etc/mke2fs.conf`
 * `init.recovery.hlthchrg.rc`
 * `init.recovery.service.rc`
 * `init.recovery.usb.rc` — recovery/device init scripts.
-* `default.prop`
-* `file_contexts`
-* `property_contexts`
-* `seapp_contexts`
-* `service_contexts`
-* `sepolicy`
-* `selinux_version` — SELinux and property configuration.
-* `sbin/` — TWRP 3.3.1-1 userspace, including `busybox`, `twrp`, `minzip`, and the other recovery binaries.
-* `twres/` — TWRP theme and UI assets.
-* `ueventd.rc`
-* `res/`
-* `oem/`
-* `system/`
-* `license/` — the rest of the recovery scaffolding.
 
-The ramdisk contents were extracted from the original working image, so these files aren't reconstructed guesses.
+This is a trimmed subset, not the full ramdisk. The rest of what came out of the extraction step below — `init.rc`, `default.prop`, `sepolicy`/`file_contexts`/`property_contexts`/`service_contexts`, `sbin/` (TWRP userspace, `busybox`, `twrp`, `minzip`), `twres/`, `res/`, `oem/`, `system/` — was reviewed during the teardown but isn't checked into this repo. If you need those files, unpack `reference/recovery_orig.img` yourself (see "Extraction method" below); the offsets there are known to work.
 
-### `recovery_orig.img`
+### `reference/recovery_orig.img`
 
 The original, unmodified `recovery.img` that everything in `recovery/root/` was extracted from.
 
@@ -132,7 +116,7 @@ If you're trying to build a recovery for the J3 2017, the two pieces I'd trust f
 
 Both come from a recovery that was actually flashed and used on hardware.
 
-The contents of `sbin/` and `twres/` are stock TWRP 3.3.1-1 userspace and resources. They are not OrangeFox.
+`sbin/` and `twres/` from the original ramdisk are stock TWRP 3.3.1-1 userspace and resources, not OrangeFox — but they aren't checked into this repo (see "What's in the repo" above). Pull them from `reference/recovery_orig.img` if you need them.
 
 If you're building OrangeFox, the usual approach here would be to keep the device-specific pieces that make the hardware work — the kernel, fstab, and relevant init configuration — and replace the TWRP userspace/theme with OrangeFox's own recovery components.
 
