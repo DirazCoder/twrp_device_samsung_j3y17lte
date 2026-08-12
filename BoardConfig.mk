@@ -79,9 +79,8 @@ TARGET_CPU_SMP                := true
 # If a real build breaks without it, that's new evidence — re-add with a
 # note on what specifically needed it.
 
-TARGET_CPU_ABI_LIST_32_BIT := armeabi-v7a,armeabi
 TARGET_CPU_ABI_LIST_64_BIT := arm64-v8a
-TARGET_CPU_ABI_LIST        := arm64-v8a,armeabi-v7a,armeabi
+TARGET_CPU_ABI_LIST        := arm64-v8a
 
 # Platform — CONFIRMED via default.prop / recovery.fstab paths
 # (ro.product.board / block device paths both reference universal7570).
