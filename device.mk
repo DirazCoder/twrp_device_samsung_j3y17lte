@@ -22,14 +22,10 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/init.recovery.service.rc:recovery/root/init.recovery.service.rc \
     $(LOCAL_PATH)/recovery/root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc
 
-ifeq ($(TARGET_PREBUILT_KERNEL),)
-	LOCAL_KERNEL := $(LOCAL_PATH)/kernel
-else
-	LOCAL_KERNEL := $(TARGET_PREBUILT_KERNEL)
-endif
-
-PRODUCT_COPY_FILES += \
-    $(LOCAL_KERNEL):kernel
+# Kernel image is now a real build output (TARGET_KERNEL_SOURCE in
+# BoardConfig.mk) rather than a static file, so it no longer needs a
+# manual PRODUCT_COPY_FILES entry here — the kernel-build rules place
+# the compiled Image where mkbootimg.mk expects it directly.
 
 # PRODUCT_BOARD identifies the SoC platform to the build system.
 PRODUCT_BOARD := universal7570

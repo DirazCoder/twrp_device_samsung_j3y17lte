@@ -54,15 +54,24 @@ The original `recovery.img` was unpacked directly rather than reconstructed from
 
 6. The decompressed ramdisk was unpacked from its cpio archive (newc format, magic `070701`) into `recovery/root/`. Earlier notes in this repo called this an SVR4 archive — that was checked and is wrong; the magic bytes are newc, not old ASCII/SVR4. Doesn't change anything functionally, just correcting the record.
 
-Nothing in the extracted recovery is being presented as source code when it isn't source code. The kernel and TWRP binaries are prebuilt artifacts from the working image.
+Nothing in the extracted recovery is being presented as source code when it isn't source code. The TWRP ramdisk binaries below are prebuilt artifacts from the working image; the kernel is no longer one of them (see "Kernel source" below).
 
 ## What's in the repo
 
-### `kernel`
+### Kernel and dt.img — no longer prebuilt files
 
-The extracted ARM64 kernel image.
+Earlier versions of this tree shipped `kernel` and `dt.img` as static
+binary files extracted directly from `reference/recovery_orig.img`.
+Both have been removed. The kernel is now built from real GPL source
+(see "Kernel source" below), synced in via `omni.dependencies` rather
+than committed to this repo, and `dt.img` is packed from that source's
+compiled `.dtb` output by a build rule in `AndroidBoard.mk` rather than
+copied from a prebuilt.
 
-This is a prebuilt kernel taken directly from the working recovery and tested on real hardware. Kernel source is also available separately; see the kernel source section below.
+If you need the original prebuilt binaries for comparison or a
+non-source build, they're still recoverable from
+`reference/recovery_orig.img` using the offsets documented earlier in
+this README.
 
 ### `recovery/root/`
 
@@ -175,18 +184,21 @@ PR — see "Board revision — confirmed" above for the one check
 
 ## Kernel source
 
-There is no longer a missing kernel-source piece here.
+There is no longer a missing kernel-source piece here — and as of the
+latest revision, it's not just available separately, it's actually
+wired into the build.
 
-Samsung's GPL release for this exact device is available as the companion repo:
+Samsung's GPL release for this exact device is synced in automatically
+via `omni.dependencies` as a real build dependency, at
+`kernel/samsung/j3y17lte`:
 
-
-**`exynos7570-j3y17lte-kernel-source`**
+**https://github.com/DirazCoder/android_kernel_samsung_j3y17lte**
 
 It comes from Samsung's Open Source Release Center for build `J330FXXU3CSK2`:
 
 https://opensource.samsung.com
 
-A mirror is available here:
+A mirror of the original archive is available here:
 
 https://archive.org/details/j330fxxu3csk2_j330foxx3csk2
 
@@ -207,6 +219,24 @@ Samsung's own `README_Kernel.txt` provides the build instructions, and the devic
 ```text
 Samsung J3Y17LTE board based on Exynos7570
 ```
+
+`BoardConfig.mk` points `TARGET_KERNEL_SOURCE` at that repo's synced
+path and sets `TARGET_KERNEL_CONFIG := exynos7570-j3y17lte_defconfig`,
+so a normal build now compiles the kernel from this source rather than
+copying a static `kernel` file into place.
+
+**dt.img packing — not yet build-verified.** The kernel source ships
+its own `tools/dtbtool` (a real prebuilt Samsung DTBH-format packer,
+confirmed by inspecting its symbol table), but nothing in the kernel
+tree's own build scripts calls it automatically. `AndroidBoard.mk` in
+this repo has an explicit rule that invokes it against the kernel's
+compiled `.dtb` output. The exact `dtbtool` flags and `KERNEL_OUT` path
+assumptions in that rule are a best-effort reconstruction from common
+usage of this tool family, not confirmed against a real build log yet.
+If a CI build fails specifically at the `dt.img` packing step, that
+rule is the place to look — the failure output should show the correct
+flag syntax directly. Once confirmed working, this note should be
+removed.
 
 The `BoardConfig.mk` in this repo now uses values taken from that source where possible instead of relying on the earlier guesses.
 
@@ -289,6 +319,13 @@ this repo's files, and three real problems were found and fixed:
    Left active, this would have made the build look for kernel source
    that doesn't exist in this tree. Commented out; `TARGET_PREBUILT_KERNEL`
    (the confirmed-working extracted kernel) is now the active default.
+
+   *(Update: this has since been reversed. Real kernel source is now
+   synced via `omni.dependencies` — see "Kernel source" above — and
+   `TARGET_KERNEL_SOURCE`/`TARGET_KERNEL_CONFIG` are the active default
+   again, this time pointing at a path that actually gets synced.
+   `TARGET_PREBUILT_KERNEL` and the `kernel` file it pointed to have
+   been removed.)*
 
 A required file, `bootimg.mk`, was also missing entirely — `BoardConfig.mk`
 referenced it but it was never added. It's generic TWRP build machinery,

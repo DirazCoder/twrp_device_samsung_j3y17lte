@@ -65,16 +65,21 @@ TARGET_NO_BOOTLOADER          := true
 TW_HAS_DOWNLOAD_MODE     := true
 TW_NO_REBOOT_BOOTLOADER  := true
 
-# Using the prebuilt kernel below since no kernel source is synced into
-# this tree. If you sync Samsung's GPL kernel source for J330F, point
-# TARGET_KERNEL_SOURCE/CONFIG at it instead and use its defconfig name.
-TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/kernel
-TARGET_PREBUILT_DTB    := $(DEVICE_PATH)/dt.img
-# dt.img extracted from recovery_orig.img at the offset given by the
-# bootimg header's own dt_size field. Magic bytes are "DTBH" v2, 4
-# entries — Samsung's multi-DTB table format, not corrupt data. Setting
-# this variable alone doesn't make ninja build dt.img; see AndroidBoard.mk
-# for the rule that actually wires it in.
+# Real GPL kernel source (Samsung opensource.samsung.com release,
+# 3.18.91, exynos7570-j3y17lte_defconfig, ANDROID_MAJOR_VERSION=p),
+# synced via omni.dependencies to kernel/samsung/j3y17lte. Replaces the
+# old TARGET_PREBUILT_KERNEL/TARGET_PREBUILT_DTB pair — the build now
+# compiles Image and dt.img from source instead of copying prebuilt
+# binaries into place.
+TARGET_KERNEL_SOURCE := kernel/samsung/j3y17lte
+TARGET_KERNEL_CONFIG := exynos7570-j3y17lte_defconfig
+TARGET_KERNEL_ARCH    := arm64
+BOARD_KERNEL_IMAGE_NAME := Image
+# dtbTool packs every exynos7570-j3y17lte*.dts the kernel build produces
+# into dt.img automatically (Samsung's Exynos DTBH v2 format — see the
+# kernel repo's own dtbTool invocation in its build scripts). No
+# device-tree-side rule is needed to assemble it; AndroidBoard.mk's old
+# prebuilt-copy rule for dt.img has been removed accordingly.
 
 # Partitions — boot/recovery sizes confirmed via the bootimg header math.
 # system/cache/userdata sizes are standard for this device class.
