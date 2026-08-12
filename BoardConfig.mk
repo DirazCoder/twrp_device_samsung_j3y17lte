@@ -1,10 +1,13 @@
 # BoardConfig.mk — Samsung Galaxy J3 2017 (j3y17lte)
 #
 # Sourcing, plainly:
-#   - Values marked CONFIRMED were read directly off recovery_orig.img
-#     (bootimg header via `file`, ramdisk contents via default.prop /
-#     recovery.fstab). That image's own fingerprint identifies it as
-#     SM-J330FN, not J330F — see device.mk for the model-string note.
+#   - Values marked CONFIRMED were read directly off recovery_orig.img —
+#     either the bootimg header (via `file`) or the actual ELF binaries
+#     inside the ramdisk (extracted by hand and checked with `file`, not
+#     inferred from prop strings — those can be stale, see the arch note
+#     below for a concrete example of that going wrong once already).
+#     The image's own fingerprint identifies it as SM-J330FN, not
+#     J330F — see device.mk for the model-string note.
 #   - "J3 Pro" (joephyu/android_device_samsung_j3y17lte, this tree's
 #     original lineage) is Samsung's own marketing name for this same
 #     SM-J330 hardware family in some regions — confirmed via Samsung's
@@ -18,6 +21,12 @@
 #     kernel defconfig before relying on them.
 #   - Nothing in this file has been confirmed by flashing/booting a
 #     J330F specifically. If you do that, come back and update this header.
+#   - This repo's own README claims the ramdisk is an SVR4 cpio archive.
+#     It isn't — the actual magic bytes are 070701, which is the "newc"
+#     cpio format, not old ASCII/SVR4. Doesn't change anything
+#     functionally, but flagging it since it's a concrete example of a
+#     claim in that README that doesn't match the actual file when
+#     checked, alongside the arch mistake below.
 
 DEVICE_PATH := device/samsung/j3y17lte
 
@@ -33,16 +42,40 @@ BOARD_MKBOOTIMG_ARGS  := --kernel_offset 0x00008000 --ramdisk_offset 0x01000000 
 # re-derived here. Wrong value here means mkbootimg output won't be accepted
 # by the bootloader, so verify before relying on it.
 
-# Architecture — CONFIRMED via default.prop: ro.zygote=zygote32,
-# ro.build.version.sdk=23 (Android 6.0.1), consistent with a 32-bit-only
-# userspace target.
-TARGET_ARCH                := arm
-TARGET_ARCH_VARIANT         := armv7-a-neon
-TARGET_CPU_ABI              := armeabi-v7a
-TARGET_CPU_ABI2             := armeabi
-TARGET_CPU_ABI_LIST_32_BIT  := armeabi-v7a,armeabi
-TARGET_CPU_VARIANT          := cortex-a15
-TARGET_CPU_SMP               := true
+# Architecture — CONFIRMED by extracting recovery_orig.img's ramdisk and
+# checking the actual ELF binaries with `file`: sbin/recovery, sbin/twrp,
+# sbin/busybox, sbin/mke2fs, sbin/sgdisk, sbin/make_ext4fs, sbin/simg2img,
+# sbin/toolbox are all "ELF 64-bit ... ARM aarch64 ... interpreter
+# /sbin/linker64" — i.e. genuinely 64-bit binaries, not just a 64-bit
+# kernel with 32-bit userspace on top. sbin/linker (32-bit) is also
+# present but that's a secondary compat linker, not evidence the primary
+# recovery binary is 32-bit — the binary that actually is recovery is
+# aarch64. This directly overrides an earlier version of this file that
+# set TARGET_ARCH to arm/armeabi-v7a based on a stale
+# ro.zygote=zygote32 line in default.prop — that prop is leftover
+# branding from an older 32-bit-era source tree per this repo's own
+# README, not a description of what this ramdisk's binaries actually are.
+TARGET_ARCH                  := arm64
+TARGET_ARCH_VARIANT          := armv8-a
+TARGET_CPU_ABI                := arm64-v8a
+TARGET_CPU_ABI2                :=
+TARGET_CPU_VARIANT           := cortex-a53
+TARGET_CPU_SMP                := true
+
+TARGET_2ND_ARCH               := arm
+TARGET_2ND_ARCH_VARIANT       := armv7-a-neon
+TARGET_2ND_CPU_ABI             := armeabi-v7a
+TARGET_2ND_CPU_ABI2            := armeabi
+TARGET_2ND_CPU_VARIANT        := cortex-a53
+# 2nd-ARCH block: ASSUMED, not directly confirmed. sbin/linker (32-bit)
+# being present suggests some 32-bit compatibility support exists, but
+# that alone doesn't prove the full build needs a 2nd arch — check this
+# against Samsung's actual kernel defconfig / a real build attempt
+# before trusting it. If the build works fine without this block, cut it.
+
+TARGET_CPU_ABI_LIST_32_BIT := armeabi-v7a,armeabi
+TARGET_CPU_ABI_LIST_64_BIT := arm64-v8a
+TARGET_CPU_ABI_LIST        := arm64-v8a,armeabi-v7a,armeabi
 
 # Platform — CONFIRMED via default.prop / recovery.fstab paths
 # (ro.product.board / block device paths both reference universal7570).

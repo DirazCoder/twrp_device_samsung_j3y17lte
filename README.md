@@ -50,7 +50,7 @@ The original `recovery.img` was unpacked directly rather than reconstructed from
 
 5. The ramdisk gzip stream was decompressed to `14,833,152` bytes.
 
-6. The decompressed ramdisk was unpacked from its SVR4 cpio archive (no CRC) into `recovery_root/`.
+6. The decompressed ramdisk was unpacked from its cpio archive (newc format, magic `070701`) into `recovery_root/`. Earlier notes in this repo called this an SVR4 archive — that was checked and is wrong; the magic bytes are newc, not old ASCII/SVR4. Doesn't change anything functionally, just correcting the record.
 
 Nothing in the extracted recovery is being presented as source code when it isn't source code. The kernel and TWRP binaries are prebuilt artifacts from the working image.
 
@@ -161,12 +161,27 @@ Examples include:
 
 These have a hardware-backed source rather than being picked because they "look right."
 
-**Correction (see "Corrected against a real published tree" below):** an
-earlier version of this list included "architecture" as VERIFIED. That
-was wrong — `TARGET_ARCH`/`TARGET_CPU_ABI` describe the userspace build
-target, not something a compiled binary teardown can determine, and the
-value originally set here (arm64) was an incorrect guess. It's fixed now,
-see below.
+**Correction, checked directly against the actual binaries rather than
+just default.prop:** an earlier version of this repo set `TARGET_ARCH`
+to `arm`/`armeabi-v7a` (32-bit), reasoning from `ro.zygote=zygote32` in
+default.prop. That's wrong. `default.prop` in this ramdisk is stale
+branding left over from an older 32-bit-era source tree (see "Why does
+the recovery say Android 6.0.1?" above — same root cause) and doesn't
+describe what's actually in `sbin/`.
+
+Extracting the ramdisk and running `file` on the actual binaries shows
+`sbin/recovery`, `sbin/twrp`, `sbin/busybox`, `sbin/mke2fs`,
+`sbin/sgdisk`, `sbin/make_ext4fs`, `sbin/simg2img`, and `sbin/toolbox`
+are all `ELF 64-bit ... ARM aarch64 ... interpreter /sbin/linker64` —
+genuinely 64-bit binaries, not a 64-bit kernel wrapping 32-bit
+userspace. `sbin/linker` (32-bit) is also present, but that's a
+secondary compat linker, not evidence the primary recovery binary is
+32-bit.
+
+`TARGET_ARCH` is now set to `arm64`, matching the binaries that are
+actually in this recovery. Architecture, done this way, counts as
+VERIFIED — checking the real ELF binaries with `file` is a direct
+inspection of the compiled artifact, not a guess from a prop string.
 
 ### UNVERIFIED / TEMPLATE
 
@@ -262,19 +277,28 @@ despite similar-looking codenames), this is a tree for the actual same
 device, apparently built and working. It was diffed line by line against
 this repo's files, and three real problems were found and fixed:
 
-1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were wrong.** This repo had them set
-   to arm64 (with arm as a secondary ABI), reasoned from the kernel
-   binary genuinely being 64-bit. That reasoning conflated the kernel's
-   architecture with the userspace build target — two different things,
-   and yes, this repo confidently marked "architecture" as VERIFIED
-   before finding that out. Nothing like a good published tree to remind
-   you that "the kernel is 64-bit" and "the build should be 64-bit" are
-   not, in fact, the same sentence.
-   The joephyu tree builds a 32-bit-only userspace (`arm`/`armeabi-v7a`)
-   on top of the 64-bit kernel, a normal split for this SoC generation.
-   Building with the old arm64 setting would very likely have failed at
-   `lunch` or produced binaries incompatible with this device's
-   32-bit-only vendor blobs.
+1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were changed to arm/32-bit here, based
+   on the joephyu tree — and that change was itself wrong.** This repo
+   originally had arm64 set, reasoned only from the kernel binary being
+   64-bit, which is a real gap in logic (kernel arch and userspace build
+   target are different things). But the fix applied at the time — copying
+   joephyu's 32-bit `arm`/`armeabi-v7a` setting — didn't actually check
+   whether that tree's target matches this recovery. It doesn't: joephyu's
+   tree is written for an Android 6.0-era Omni build, while this repo's own
+   recovery is TWRP 3.3.1-1, tested against Android 9 (Pie) — see "Why does
+   the recovery say Android 6.0.1?" above. Copying a 32-bit setting from a
+   6.0-era tree onto a Pie-era recovery isn't a like-for-like correction,
+   it's borrowing an answer from a different device generation.
+
+   This has since been checked properly: the actual `sbin/` binaries in
+   this ramdisk (`recovery`, `twrp`, `busybox`, `mke2fs`, `sgdisk`,
+   `make_ext4fs`, `simg2img`, `toolbox`) were extracted and run through
+   `file`, and all of them report `ELF 64-bit ... ARM aarch64 ...
+   interpreter /sbin/linker64`. That's genuinely 64-bit userspace, not a
+   64-bit kernel with 32-bit binaries on top. `TARGET_ARCH` is back to
+   `arm64` / `arm64-v8a`, this time backed by inspecting the actual
+   compiled binaries rather than either a stale prop string or an
+   unchecked borrow from a different tree's Android version.
 
 2. **`device.mk` inherited the wrong product base.** It called
    `embedded.mk` (a minimal base meant for non-phone targets like TVs)
@@ -289,6 +313,15 @@ this repo's files, and three real problems were found and fixed:
 A required file, `bootimg.mk`, was also missing entirely — `BoardConfig.mk`
 referenced it but it was never added. It's generic TWRP build machinery,
 not device-specific, and has been added.
+
+One more product-identity mismatch, unrelated to the joephyu diff: this
+tree's `device.mk`/`omni_j3y17lte.mk` had `PRODUCT_MODEL` hardcoded to
+`SM-J330FN`, copied straight from this ramdisk's own `default.prop`. If
+you're building for a J330F specifically, that's the wrong model string
+for your unit — it's been corrected to `SM-J330F`, with a note in both
+files that the source recovery this tree is built from is genuinely an
+FN build, so treat anything model-specific here as FN-sourced, not
+independently confirmed against an F.
 
 Everything this repo had independently confirmed from real hardware —
 boot/recovery partition sizes, display geometry, DTS board revision,
