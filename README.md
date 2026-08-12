@@ -150,7 +150,9 @@ Examples include:
 
 * kernel base and offset information
 * page size
-* platform/board strings
+* platform/board strings (see "Cross-checked against two more independent
+  images" below for the `--board` string specifically — it went through
+  a fabricated value, then blank, before landing on a real sourced one)
 * fstab partition layout (mount points, device paths)
 * boot/recovery partition byte sizes (confirmed via `/proc/partitions`)
 * display geometry (confirmed via visual check on real hardware)
@@ -328,6 +330,148 @@ boot/recovery partition sizes, display geometry, DTS board revision,
 kernel boot offsets, fstab structure — was cross-checked against the
 joephyu tree during this pass and matches. Those values are unchanged
 and now have two independent sources agreeing, not just one.
+
+## Corrected against a real published tree (aka the "well, that's embarrassing" section)
+
+After this repo's `BoardConfig.mk`/`device.mk`/`Android.mk` were first
+written from the teardown alone, a real published TWRP device tree for
+this exact codename was found:
+
+**`joephyu/android_device_samsung_j3y17lte`**
+https://github.com/joephyu/android_device_samsung_j3y17lte
+
+Unlike the Exynos7570 devices searched for earlier (this is not the same
+SoC as the J5/J7 2017 Exynos7870 trees, which are a different chip
+despite similar-looking codenames), this is a tree for the actual same
+device, apparently built and working. It was diffed line by line against
+this repo's files, and three real problems were found and fixed:
+
+1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were changed to arm/32-bit here, based
+   on the joephyu tree — and that change was itself wrong.** This repo
+   originally had arm64 set, reasoned only from the kernel binary being
+   64-bit, which is a real gap in logic (kernel arch and userspace build
+   target are different things). But the fix applied at the time — copying
+   joephyu's 32-bit `arm`/`armeabi-v7a` setting — didn't actually check
+   whether that tree's target matches this recovery. It doesn't: joephyu's
+   tree is written for an Android 6.0-era Omni build, while this repo's own
+   recovery is TWRP 3.3.1-1, tested against Android 9 (Pie) — see "Why does
+   the recovery say Android 6.0.1?" above. Copying a 32-bit setting from a
+   6.0-era tree onto a Pie-era recovery isn't a like-for-like correction,
+   it's borrowing an answer from a different device generation.
+
+   This has since been checked properly: the actual `sbin/` binaries in
+   this ramdisk (`recovery`, `twrp`, `busybox`, `mke2fs`, `sgdisk`,
+   `make_ext4fs`, `simg2img`, `toolbox`) were extracted and run through
+   `file`, and all of them report `ELF 64-bit ... ARM aarch64 ...
+   interpreter /sbin/linker64`. That's genuinely 64-bit userspace, not a
+   64-bit kernel with 32-bit binaries on top. `TARGET_ARCH` is back to
+   `arm64` / `arm64-v8a`, this time backed by inspecting the actual
+   compiled binaries rather than either a stale prop string or an
+   unchecked borrow from a different tree's Android version.
+
+2. **`device.mk` inherited the wrong product base.** It called
+   `embedded.mk` (a minimal base meant for non-phone targets like TVs)
+   instead of `full.mk` plus language/GPS config. Corrected to match the
+   proven tree.
+
+3. **`TARGET_KERNEL_SOURCE` pointed at a path that was never synced.**
+   Left active, this would have made the build look for kernel source
+   that doesn't exist in this tree. Commented out; `TARGET_PREBUILT_KERNEL`
+   (the confirmed-working extracted kernel) is now the active default.
+
+A required file, `bootimg.mk`, was also missing entirely — `BoardConfig.mk`
+referenced it but it was never added. It's generic TWRP build machinery,
+not device-specific, and has been added.
+
+One more product-identity mismatch, unrelated to the joephyu diff: this
+tree's `device.mk`/`omni_j3y17lte.mk` had `PRODUCT_MODEL` hardcoded to
+`SM-J330FN`, copied straight from this ramdisk's own `default.prop`. If
+you're building for a J330F specifically, that's the wrong model string
+for your unit — it's been corrected to `SM-J330F`, with a note in both
+files that the source recovery this tree is built from is genuinely an
+FN build, so treat anything model-specific here as FN-sourced, not
+independently confirmed against an F.
+
+Everything this repo had independently confirmed from real hardware —
+boot/recovery partition sizes, display geometry, DTS board revision,
+kernel boot offsets, fstab structure — was cross-checked against the
+joephyu tree during this pass and matches. Those values are unchanged
+and now have two independent sources agreeing, not just one.
+
+## Cross-checked against two more independent images
+
+Two more images, unrelated to both this repo's original teardown and the
+joephyu tree above, were used to pressure-test the remaining ASSUMED/
+UNVERIFIED values in `BoardConfig.mk`:
+
+* an online-builder-generated recovery (TeamHovatek's builder, dated
+  2026-08-12, `ro.omni.version=16.1.0-...-hovatek-HOMEMADE`) — confirmed
+  by the person maintaining this repo to boot and flash successfully on
+  a real SM-J330F
+* Samsung's own **stock** recovery image for this device (not a TWRP
+  build at all) — `ro.product.model=SM-J330F`,
+  `ro.build.fingerprint=samsung/j3y17lteser/j3y17lte:9/PPR1.180610.011/
+  J330FXWS4CUD4:user/release-keys`, `BOARD_OS_VERSION 9.0.0`,
+  `BOARD_OS_PATCH_LEVEL 2021-04` — as close to ground truth as this repo
+  has access to
+
+What came out of that:
+
+1. **`--board` string, resolved for real this time.** The value in this
+   tree started as `SRPQE04B000RU`, inherited from prior tree lineage
+   with no traceable source — never actually read off any image in this
+   repo. When that was noticed, the field was checked directly against
+   this repo's own `recovery_orig.img` header (`od -c` on the AIK-split
+   board field) and found to be genuinely blank in that specific image,
+   so the fabricated value was removed rather than left as an unsourced
+   guess. Then Samsung's stock recovery.img (above) was checked the same
+   way and its header field is **not** blank: `SRPQC17A001RU`, clean
+   ASCII, no truncation. Since that image is confirmed-genuine Samsung
+   firmware for this exact model, `--board SRPQC17A001RU` is now back in
+   `BoardConfig.mk`, this time with an actual source.
+
+2. **GPU string corrected: `mali-T720` → `mali-T720-MP2`.** Recovery
+   ramdisks don't reference a GPU model anywhere (TWRP renders through
+   the framebuffer, not the GPU driver), so this was never checkable from
+   any image directly, including these two. It's sourced externally
+   instead: five independent spec pages (Notebookcheck DE/EN, CPU-Monkey,
+   PhonesSpecs, GSMArena) all agree the Exynos 7570 uses Mali-T720 MP2,
+   and one names the SM-J330/Galaxy J3 2017 family specifically. The
+   previous value was missing the MP2 core count, which some Mali kernel
+   driver configs key off directly.
+
+3. **`TARGET_2ND_ARCH` block removed.** The only 32-bit ELF anywhere in
+   this repo's extracted ramdisk is `sbin/linker` — no 32-bit `.so`
+   libraries or executables exist that would actually use it, and every
+   TWRP tool binary is aarch64. Nothing in the recovery environment
+   exercises a 32-bit code path, so the block was dead configuration
+   weight, not a real requirement. If a real build breaks without it,
+   that's new evidence to reopen this.
+
+4. **One naming question raised, then resolved as a non-issue.** Both the
+   hovatek build and Samsung's stock recovery use `fstab.samsungexynos7570`
+   / `ro.hardware.chipname=exynos7570`, not this tree's
+   `TARGET_BOOTLOADER_BOARD_NAME := universal7570` — looked like a
+   discrepancy at first. It isn't one: Samsung's own stock `init.rc`
+   carries `#universal7570` as an internal comment/board-codename marker,
+   confirming `universal7570` is Samsung's own name for this board too.
+   `exynos7570`/`samsungexynos7570` is a separate SoC-family naming
+   convention used for HAL/service matching (`ro.hardware.chipname`,
+   `fstab.<name>`), not a competing value for the same field. Both
+   conventions coexist in Samsung's own stock image; this tree's value
+   didn't need to change.
+
+5. **Partition mapping cross-validated a second time.** Every core
+   partition path in this tree's `recovery.fstab` (`BOOT`, `CACHE`,
+   `SYSTEM`, `RECOVERY`, `EFS`, `RADIO`, `CPEFS`) matches the hovatek
+   image's fstab exactly, same `by-name` block-device paths. Third
+   independent source, same layout.
+
+Not resolved by this pass: the hovatek image's `/data` fstab line is
+missing the `encryptable=footer`/`length=-16384` flags this tree's
+`/data` line carries. The hovatek recovery flashing successfully doesn't
+settle which is right for encrypted-`/data` handling — that discrepancy
+is still open.
 
 ## What's still unknown
 
