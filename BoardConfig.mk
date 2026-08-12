@@ -1,4 +1,3 @@
-
 # BoardConfig.mk — Samsung Galaxy J3 2017 (j3y17lte)
 #
 # Sourcing, plainly:
@@ -105,6 +104,14 @@ TARGET_NO_BOOTLOADER          := true
 # it against the actual GPL source drop for J330F (not J330FN).
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/kernel
 TARGET_PREBUILT_DTB    := $(DEVICE_PATH)/dt.img
+# dt.img — CONFIRMED, extracted from recovery_orig.img at the page-aligned
+# offset given by the bootimg header's own dt_size field (0x5a800 bytes,
+# not zero, so this device genuinely ships a separate DTB region rather
+# than a kernel with the device tree compiled in). Magic bytes are
+# "DTBH" version 2, 4 entries — Samsung's own multi-DTB table format for
+# Exynos boards, not raw/corrupt data. AndroidBoard.mk in this tree wires
+# TARGET_PREBUILT_DTB into an actual INSTALLED_DTIMAGE_TARGET rule, since
+# setting this variable alone doesn't make ninja build dt.img.
 
 # Partitions — boot/recovery sizes CONFIRMED via recovery_orig.img's own
 # bootimg header math (page size * page count). system/cache/userdata
