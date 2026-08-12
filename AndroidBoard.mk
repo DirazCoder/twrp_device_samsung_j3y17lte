@@ -28,6 +28,15 @@ endif
 # bootimg.mk already uses for recovery.img, purely to satisfy the make graph.
 # It is not meant to be flashed on its own.
 INSTALLED_BOOTIMAGE_TARGET := $(PRODUCT_OUT)/boot.img
-$(INSTALLED_BOOTIMAGE_TARGET): $(MKBOOTIMG) $(INSTALLED_DTIMAGE_TARGET) $(recovery_kernel) $(recovery_ramdisk)
+# Ninja parallelizes any two rules that share a prerequisite (here,
+# $(recovery_ramdisk)) without ordering one before the other -- it only
+# guarantees the prerequisite itself is built first, not which consumer
+# runs next. bootimg.mk's recovery.img rule depends on the same ramdisk,
+# so both this placeholder and the real recovery.img can fire back-to-back
+# the instant the ramdisk exists. Since this rule is graph-satisfying
+# scaffolding, not a real artifact, just let it reuse recovery.img's
+# already-built output instead of re-invoking mkbootimg at all -- that
+# makes the ordering explicit and skips a redundant mkbootimg call.
+$(INSTALLED_BOOTIMAGE_TARGET): $(INSTALLED_RECOVERYIMAGE_TARGET)
 	@echo -e ${CL_GRN}"----- Making placeholder boot image (graph dependency only, not for flashing) ------"${CL_RST}
-	$(hide) $(MKBOOTIMG) $(INTERNAL_RECOVERYIMAGE_ARGS) $(BOARD_MKBOOTIMG_ARGS) --output $@ --ramdisk $(recovery_ramdisk)
+	$(hide) cp -f $(INSTALLED_RECOVERYIMAGE_TARGET) $@
