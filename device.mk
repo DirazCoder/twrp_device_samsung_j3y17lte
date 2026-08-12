@@ -3,12 +3,15 @@
 # PROVENANCE: see BoardConfig.mk in this folder for the full [DEVICE] /
 # [REFTREE] / [TEMPLATE] tagging scheme.
 #
-# CORRECTION LOG: this file previously inherited embedded.mk, a minimal
-# product base meant for non-phone targets (TVs, wearables). The proven
-# joephyu tree inherits build/target/product/full.mk plus language and
-# GPS config instead — corrected below. embedded.mk missing standard
-# phone-product packages/config is a plausible source of confusing
-# lunch/build failures that would have looked like a device-tree bug.
+# CORRECTION LOG: this file went embedded.mk -> full.mk -> embedded.mk.
+# full.mk was tried on the theory that embedded.mk was "too minimal" for
+# a phone build, but full.mk is the whole-system product base and it's
+# what actually broke the recovery link step (system/bin/linker never
+# got a build rule — see the note at the embedded.mk inherit below for
+# the mechanism). embedded.mk is the base every working omni/TWRP device
+# tree inherits; that was correct in the first place. Don't re-"fix"
+# this back to full.mk without reproducing the actual failure it was
+# meant to solve first.
 
 LOCAL_PATH := device/samsung/j3y17lte
 
@@ -67,12 +70,18 @@ PRODUCT_MODEL        := SM-J330F
 PRODUCT_MANUFACTURER := samsung
 PRODUCT_BOARD        := universal7570
 
-# [REFTREE] — standard product base for a phone recovery target, replaces
-# the previous (incorrect) embedded.mk inheritance.
-$(call inherit-product, build/target/product/full.mk)
+# CORRECTION (reverted): full.mk pulls in the entire system-partition
+# package/app set, which this recovery-only build doesn't need and which
+# was the actual cause of the "system/bin/linker missing, needed by
+# libbmlutils_intermediates/teamwin" ninja failure — full.mk changes how
+# core bionic/linker targets get scheduled in a way that broke the
+# recovery link step. embedded.mk is the base every working omni/TWRP
+# device tree actually inherits (see minimal-manifest-twrp's own
+# "how to create a device tree" reference); switching back to it.
+$(call inherit-product-if-exists, $(SRC_TARGET_DIR)/product/embedded.mk)
 
 PRODUCT_BUILD_PROP_OVERRIDES += BUILD_UTC_DATE=0   # [REFTREE]
-PRODUCT_NAME  := full_j3y17lte
+PRODUCT_NAME  := omni_j3y17lte
 PRODUCT_DEVICE := j3y17lte
 
 PRODUCT_PACKAGES += \
