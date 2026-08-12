@@ -39,10 +39,10 @@ DEVICE_PACKAGE_OVERLAYS += device/samsung/j3y17lte/overlay   # [REFTREE]
 #                                          functionally required.
 # ------------------------------------------------------------------------
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/recovery_root/etc/recovery.fstab:recovery/root/etc/recovery.fstab \
-    $(LOCAL_PATH)/recovery_root/init.recovery.hlthchrg.rc:recovery/root/init.recovery.hlthchrg.rc \
-    $(LOCAL_PATH)/recovery_root/init.recovery.service.rc:recovery/root/init.recovery.service.rc \
-    $(LOCAL_PATH)/recovery_root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc
+    $(LOCAL_PATH)/recovery/root/etc/recovery.fstab:recovery/root/etc/recovery.fstab \
+    $(LOCAL_PATH)/recovery/root/init.recovery.hlthchrg.rc:recovery/root/init.recovery.hlthchrg.rc \
+    $(LOCAL_PATH)/recovery/root/init.recovery.service.rc:recovery/root/init.recovery.service.rc \
+    $(LOCAL_PATH)/recovery/root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc
 
 ifeq ($(TARGET_PREBUILT_KERNEL),)
 	LOCAL_KERNEL := $(LOCAL_PATH)/kernel
