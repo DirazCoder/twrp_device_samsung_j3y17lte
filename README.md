@@ -29,7 +29,7 @@ The original Odin tar contains:
 
 ## Why does the recovery say Android 6.0.1?
 
-Yes, really — a device that shipped on Android 7 and got this recovery built for Android 9 has a config file confidently claiming Android 6.0.1. It's not a typo, it's not a hoax, and no, you didn't get sent back in time. `recovery_root/default.prop` just still reports `ro.build.version.release=6.0.1`, left over from the older Omni 6.0.1-era `omni_j3y17lte` tree this was built from in August 2019. Nobody updated the sticker after renovating the house.
+Yes, really — a device that shipped on Android 7 and got this recovery built for Android 9 has a config file confidently claiming Android 6.0.1. It's not a typo, it's not a hoax, and no, you didn't get sent back in time. `recovery/root/default.prop` just still reports `ro.build.version.release=6.0.1`, left over from the older Omni 6.0.1-era `omni_j3y17lte` tree this was built from in August 2019. Nobody updated the sticker after renovating the house.
 
 It's stale, not broken — recovery is its own small Linux environment and doesn't inherit the phone's Android version. What actually determines whether it works is kernel hardware support and the fstab partition layout, both of which were patched for the Pie-era setup and confirmed by flashing to a real J330F.
 
@@ -52,7 +52,7 @@ The original `recovery.img` was unpacked directly rather than reconstructed from
 
 5. The ramdisk gzip stream was decompressed to `14,833,152` bytes.
 
-6. The decompressed ramdisk was unpacked from its cpio archive (newc format, magic `070701`) into `recovery_root/`. Earlier notes in this repo called this an SVR4 archive — that was checked and is wrong; the magic bytes are newc, not old ASCII/SVR4. Doesn't change anything functionally, just correcting the record.
+6. The decompressed ramdisk was unpacked from its cpio archive (newc format, magic `070701`) into `recovery/root/`. Earlier notes in this repo called this an SVR4 archive — that was checked and is wrong; the magic bytes are newc, not old ASCII/SVR4. Doesn't change anything functionally, just correcting the record.
 
 Nothing in the extracted recovery is being presented as source code when it isn't source code. The kernel and TWRP binaries are prebuilt artifacts from the working image.
 
@@ -64,7 +64,7 @@ The extracted ARM64 kernel image.
 
 This is a prebuilt kernel taken directly from the working recovery and tested on real hardware. Kernel source is also available separately; see the kernel source section below.
 
-### `recovery_root/`
+### `recovery/root/`
 
 The complete unpacked recovery ramdisk.
 
@@ -94,7 +94,7 @@ The ramdisk contents were extracted from the original working image, so these fi
 
 ### `recovery_orig.img`
 
-The original, unmodified `recovery.img` that everything in `recovery_root/` was extracted from.
+The original, unmodified `recovery.img` that everything in `recovery/root/` was extracted from.
 
 It's kept around for comparison, verification, and re-flashing.
 
@@ -128,7 +128,7 @@ So the repo is structurally complete, but it isn't claiming that every build var
 If you're trying to build a recovery for the J3 2017, the two pieces I'd trust first are:
 
 * `kernel`
-* `recovery_root/etc/recovery.fstab`
+* `recovery/root/etc/recovery.fstab`
 
 Both come from a recovery that was actually flashed and used on hardware.
 
