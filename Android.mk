@@ -1,9 +1,8 @@
 # Android.mk — Samsung Galaxy J3 2017 (SM-J330F/FN/G, j3y17lte)
 #
-# Standard TWRP device-tree module registration. Corrected to match the
-# proven pattern from joephyu/android_device_samsung_j3y17lte — uses
-# ifneq/filter (more permissive matching against TARGET_DEVICE) and
-# all-makefiles-under rather than all-subdir-makefiles. [REFTREE]
+# Standard TWRP device-tree module registration. Uses ifneq/filter (more
+# permissive matching against TARGET_DEVICE) and all-makefiles-under
+# rather than all-subdir-makefiles, matching joephyu's original tree.
 
 ifneq ($(filter j3y17lte,$(TARGET_DEVICE)),)
 
