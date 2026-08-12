@@ -167,9 +167,10 @@ Examples include:
 
 * kernel base and offset information
 * page size
-* architecture
 * platform/board strings
-* partition layout
+* fstab partition layout (mount points, device paths)
+* boot/recovery partition byte sizes (confirmed via `/proc/partitions`)
+* display geometry (confirmed via visual check on real hardware)
 * encryption-related flags
 * kernel version
 * exact defconfig name
@@ -177,15 +178,22 @@ Examples include:
 
 These have a hardware-backed source rather than being picked because they "look right."
 
+**Correction (see "Corrected against a real published tree" below):** an
+earlier version of this list included "architecture" as VERIFIED. That
+was wrong — `TARGET_ARCH`/`TARGET_CPU_ABI` describe the userspace build
+target, not something a compiled binary teardown can determine, and the
+value originally set here (arm64) was an incorrect guess. It's fixed now,
+see below.
+
 ### UNVERIFIED / TEMPLATE
 
 These are values where the compiled recovery didn't contain enough information to recover the original setting.
 
 Examples include:
 
-* the exact kernel source/defconfig relationship before the Samsung source was found
-* exact partition byte sizes
-* display panel geometry
+* system/cache/userdata partition byte sizes (boot/recovery sizes ARE now
+  confirmed — see below; these three are still sourced from a reference
+  tree only, not independently measured on this device)
 * HAL/driver-specific build flags
 * other source-tree-only configuration
 
@@ -255,6 +263,51 @@ cat /proc/device-tree/model_info-hw_rev_end   # 255
 That's an exact match to `exynos7570-j3y17lte_eur_open_04.dts` and no other variant. `BoardConfig.mk` now points at that file specifically (`TARGET_KERNEL_DTB_NAME`).
 
 Worth noting for anyone with a different J330F/FN/G unit: this confirms *this specific device's* revision, not that every J330F out there is `_04`. If you're forking this for your own unit, run the same `adb shell` check against your phone before assuming `_04` applies to you too.
+
+## Corrected against a real published tree
+
+After this repo's `BoardConfig.mk`/`device.mk`/`Android.mk` were first
+written from the teardown alone, a real published TWRP device tree for
+this exact codename was found:
+
+**`joephyu/android_device_samsung_j3y17lte`**
+https://github.com/joephyu/android_device_samsung_j3y17lte
+
+Unlike the Exynos7570 devices searched for earlier (this is not the same
+SoC as the J5/J7 2017 Exynos7870 trees, which are a different chip
+despite similar-looking codenames), this is a tree for the actual same
+device, apparently built and working. It was diffed line by line against
+this repo's files, and three real problems were found and fixed:
+
+1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were wrong.** This repo had them set
+   to arm64 (with arm as a secondary ABI), reasoned from the kernel
+   binary genuinely being 64-bit. That reasoning conflated the kernel's
+   architecture with the userspace build target — two different things.
+   The joephyu tree builds a 32-bit-only userspace (`arm`/`armeabi-v7a`)
+   on top of the 64-bit kernel, a normal split for this SoC generation.
+   Building with the old arm64 setting would very likely have failed at
+   `lunch` or produced binaries incompatible with this device's
+   32-bit-only vendor blobs.
+
+2. **`device.mk` inherited the wrong product base.** It called
+   `embedded.mk` (a minimal base meant for non-phone targets like TVs)
+   instead of `full.mk` plus language/GPS config. Corrected to match the
+   proven tree.
+
+3. **`TARGET_KERNEL_SOURCE` pointed at a path that was never synced.**
+   Left active, this would have made the build look for kernel source
+   that doesn't exist in this tree. Commented out; `TARGET_PREBUILT_KERNEL`
+   (the confirmed-working extracted kernel) is now the active default.
+
+A required file, `bootimg.mk`, was also missing entirely — `BoardConfig.mk`
+referenced it but it was never added. It's generic TWRP build machinery,
+not device-specific, and has been added.
+
+Everything this repo had independently confirmed from real hardware —
+boot/recovery partition sizes, display geometry, DTS board revision,
+kernel boot offsets, fstab structure — was cross-checked against the
+joephyu tree during this pass and matches. Those values are unchanged
+and now have two independent sources agreeing, not just one.
 
 ## What's still unknown
 
