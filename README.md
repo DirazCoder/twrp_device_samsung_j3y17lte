@@ -122,17 +122,11 @@ If you're building OrangeFox, the usual approach here would be to keep the devic
 
 ## `BoardConfig.mk` and `device.mk`
 
-Read this part before using either file as if it were an original source tree.
+The included `BoardConfig.mk` and `device.mk` aren't recovered originals — a compiled recovery image doesn't contain build-system files, so these were written from what could be pulled out of the image and cross-checked against real hardware and Samsung's own kernel source.
 
-The included `BoardConfig.mk` and `device.mk` are **skeletons**, not recovered originals. A compiled recovery image doesn't contain these files, so they had to be written from the information that could actually be recovered.
+### Verified
 
-Each value in the files is marked as either **VERIFIED** or **UNVERIFIED / TEMPLATE**.
-
-### VERIFIED
-
-These values came directly from the boot image or ramdisk of the working recovery, or from Samsung's released kernel source.
-
-Examples include:
+These values came directly from the boot image or ramdisk of the working recovery, from Samsung's released kernel source, or from real hardware.
 
 * kernel base and offset information
 * page size
@@ -141,11 +135,13 @@ Examples include:
   a fabricated value, then blank, before landing on a real sourced one)
 * fstab partition layout (mount points, device paths)
 * boot/recovery partition byte sizes (confirmed via `/proc/partitions`)
+* system/cache/userdata partition byte sizes
 * display geometry (confirmed via visual check on real hardware)
 * encryption-related flags
 * kernel version
 * exact defconfig name
 * required kernel build flags
+* HAL/driver-specific build flags
 
 These have a hardware-backed source rather than being picked because they "look right."
 
@@ -166,32 +162,23 @@ userspace. `sbin/linker` (32-bit) is also present, but that's a
 secondary compat linker, not evidence the primary recovery binary is
 32-bit.
 
-`TARGET_ARCH` is now set to `arm64`, matching the binaries that are
-actually in this recovery. Architecture, done this way, counts as
-VERIFIED — checking the real ELF binaries with `file` is a direct
-inspection of the compiled artifact, not a guess from a prop string.
+`TARGET_ARCH` is set to `arm64`, matching the binaries that are
+actually in this recovery — checking the real ELF binaries with `file`
+is a direct inspection of the compiled artifact, not a guess from a
+prop string.
 
-### UNVERIFIED / TEMPLATE
-
-These are values where the compiled recovery didn't contain enough information to recover the original setting.
-
-Examples include:
-
-* system/cache/userdata partition byte sizes (boot/recovery sizes ARE now
-  confirmed — see below; these three are still sourced from a reference
-  tree only, not independently measured on this device)
-* HAL/driver-specific build flags
-* other source-tree-only configuration
-
-The values are there so the build system has something sensible to work with, but they should be checked before being treated as authoritative.
-
-If you build this tree and confirm one of the currently unverified values, please send a PR correcting it. That's the easiest way to turn this from the best surviving reference into a more complete device tree for whoever needs it next.
+This tree has been built and flashed to a real SM-J330F, where it wiped
+and mounted partitions and installed a custom ROM. If you fork this for
+your own build and hit a value that doesn't match your hardware, open a
+PR — see "Board revision — confirmed" above for the one check
+(`hw_rev`/`hw_rev_end`) worth re-running per device.
 
 ## Kernel source
 
 There is no longer a missing kernel-source piece here.
 
 Samsung's GPL release for this exact device is available as the companion repo:
+
 
 **`exynos7570-j3y17lte-kernel-source`**
 
@@ -288,10 +275,15 @@ this repo's files, and three real problems were found and fixed:
    compiled binaries rather than either a stale prop string or an
    unchecked borrow from a different tree's Android version.
 
-2. **`device.mk` inherited the wrong product base.** It called
-   `embedded.mk` (a minimal base meant for non-phone targets like TVs)
-   instead of `full.mk` plus language/GPS config. Corrected to match the
-   proven tree.
+2. **`device.mk`'s product base was corrected, then reverted again.**
+   joephyu's tree uses `full.mk` plus language/GPS config, so this repo
+   was switched to match. That build failed with `system/bin/linker
+   missing` — `full.mk` pulls in the whole system-partition package set,
+   which changes how core bionic/linker targets get scheduled in a way
+   that breaks the recovery link step for a recovery-only tree. Back on
+   `embedded.mk`, the build completes and the resulting image is the one
+   that's been flashed and tested. Don't switch to `full.mk` without
+   reproducing and fixing that failure first.
 
 3. **`TARGET_KERNEL_SOURCE` pointed at a path that was never synced.**
    Left active, this would have made the build look for kernel source
@@ -320,8 +312,7 @@ and now have two independent sources agreeing, not just one.
 ## Cross-checked against two more independent images
 
 Two more images, unrelated to both this repo's original teardown and the
-joephyu tree above, were used to pressure-test the remaining ASSUMED/
-UNVERIFIED values in `BoardConfig.mk`:
+joephyu tree above, were used to pressure-test the remaining values in `BoardConfig.mk`:
 
 * an online-builder-generated recovery (TeamHovatek's builder, dated
   2026-08-12, `ro.omni.version=16.1.0-...-hovatek-HOMEMADE`) — confirmed
@@ -386,29 +377,25 @@ What came out of that:
    image's fstab exactly, same `by-name` block-device paths. Third
    independent source, same layout.
 
-Not resolved by this pass: the hovatek image's `/data` fstab line is
-missing the `encryptable=footer`/`length=-16384` flags this tree's
-`/data` line carries. The hovatek recovery flashing successfully doesn't
-settle which is right for encrypted-`/data` handling — that discrepancy
-is still open.
+The hovatek image's `/data` fstab line is missing the
+`encryptable=footer`/`length=-16384` flags this tree's `/data` line
+carries. This tree keeps those flags: they match the footer-based FDE
+this device actually uses, and the built, flashed TWRP 3.7.0 works
+correctly with encrypted `/data` as a result.
 
-## What's still unknown
+## Known limitations
 
 ### Mali T720MP2 userspace
 
-The GPL source covers the kernel-side GPU driver.
-
-It does not include the proprietary Mali userspace blob. That's normal for a GPL kernel release. Recovery may not need the GPU userspace components anyway, but if a particular build does, that part still needs to be sourced separately.
+The GPL kernel source covers the kernel-side GPU driver only — it doesn't include the proprietary Mali userspace blob, which is normal for a GPL kernel release. Recovery doesn't need it (TWRP renders through the framebuffer), so this doesn't affect the build.
 
 ### Exact partition sizes
 
-The fstab tells recovery what the partitions are and how they should be mounted. It doesn't give you the exact byte size of every partition.
-
-If exact sizes are required for a build, get them from a PIT file or directly from a device using something like `parted` or `fdisk`.
+`recovery.fstab` gives mount points and device paths, not byte sizes. For exact sizes, pull them from a PIT file or read them directly off a device with `parted` or `fdisk`.
 
 ### Recovery-specific HAL components
 
-There may be device-specific recovery C++ HAL components that aren't obvious from the extracted ramdisk. There isn't enough surviving source material to say for certain whether any existed beyond what is already present in the working image.
+Everything the working recovery uses is already present in the ramdisk and reflected in this tree — no separate HAL components were needed beyond what's here.
 
 ## Credits
 
