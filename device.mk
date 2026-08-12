@@ -50,12 +50,19 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_KERNEL):kernel
 
 # ------------------------------------------------------------------------
-# Product identity — [DEVICE] pulled directly from default.prop of the
-# working image.
+# Product identity.
+#
+# NOTE: the recovery.img this tree was originally reverse-engineered from
+# (recovery_orig.img, ro.build.fingerprint in default.prop) reports
+# PRODUCT_MODEL=SM-J330FN, not SM-J330F. J330F/FN/G are the same board
+# (universal7570) and near-identical hardware, so this tree should still
+# build and boot fine on a J330F, but the model string below has been
+# corrected to match the actual target device rather than silently
+# carrying over the FN value from that source image.
 # ------------------------------------------------------------------------
 PRODUCT_DEVICE       := j3y17lte
 PRODUCT_BRAND        := samsung
-PRODUCT_MODEL        := SM-J330FN
+PRODUCT_MODEL        := SM-J330F
 PRODUCT_MANUFACTURER := samsung
 PRODUCT_BOARD        := universal7570
 

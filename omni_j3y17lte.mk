@@ -10,5 +10,5 @@ $(call inherit-product, $(LOCAL_PATH)/device.mk)
 PRODUCT_NAME := omni_j3y17lte
 PRODUCT_DEVICE := j3y17lte
 PRODUCT_BRAND := samsung
-PRODUCT_MODEL := SM-J330FN
+PRODUCT_MODEL := SM-J330F
 PRODUCT_MANUFACTURER := samsung
