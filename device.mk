@@ -14,8 +14,9 @@ LOCAL_PATH := device/samsung/j3y17lte
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)   # [REFTREE]
 
-# The GPS config appropriate for this device — [REFTREE]
-$(call inherit-product, device/common/gps/gps_us_supl.mk)
+# gps_us_supl.mk removed: not part of the omni minimal manifest (so
+# repo sync never fetches it), and TWRP recovery has no use for
+# SUPL/location config regardless.
 
 $(call inherit-product-if-exists, vendor/samsung/j3y17lte/j3y17lte-vendor.mk)   # [REFTREE]
 
