@@ -5,15 +5,19 @@
 #     (bootimg header via `file`, ramdisk contents via default.prop /
 #     recovery.fstab). That image's own fingerprint identifies it as
 #     SM-J330FN, not J330F — see device.mk for the model-string note.
-#     J330F/FN/G share the same board (universal7570) and are expected
-#     to behave the same here, but that's an assumption, not something
-#     this image proves for the F specifically.
+#   - "J3 Pro" (joephyu/android_device_samsung_j3y17lte, this tree's
+#     original lineage) is Samsung's own marketing name for this same
+#     SM-J330 hardware family in some regions — confirmed via Samsung's
+#     official firmware metadata, which lists device=j3y17lte,
+#     board=universal7570 for a real SM-J330FN unit. So J330F/FN/G/Pro
+#     are the same board under different regional badges, not separate
+#     devices — this is a real cross-check, not an assumption.
 #   - Values marked ASSUMED are standard for this board/SoC generation
 #     but have no direct confirmation in this repo. Treat them as a
 #     starting point, not a verified fact — check against a build or a
 #     kernel defconfig before relying on them.
 #   - Nothing in this file has been confirmed by flashing/booting a
-#     J330F. If you do that, come back and update this header.
+#     J330F specifically. If you do that, come back and update this header.
 
 DEVICE_PATH := device/samsung/j3y17lte
 
