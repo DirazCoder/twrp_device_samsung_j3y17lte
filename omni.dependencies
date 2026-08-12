@@ -1,8 +1,8 @@
 [
   {
-    "repository": "android_kernel_samsung_j3y17lte",
+    "repository": "DirazCoder/android_kernel_samsung_j3y17lte",
     "target_path": "kernel/samsung/j3y17lte",
-    "remote": "DirazCoder",
+    "remote": "github",
     "branch": "main"
   }
 ]
