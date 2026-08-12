@@ -18,7 +18,7 @@ It was originally posted on XDA:
 
 https://xdaforums.com/t/recovery-root-twrp-3-3-1-1-samsung-galaxy-j3-2017-sm-j330f-j330fn-j330g-ds.3709056/
 
-The release was credited to **ashyx** as the poster/tester. The actual builder isn't named in the thread, but the ramdisk's build properties identify the build user as **`mark`**.
+The release was credited to **ashyx** as the poster/tester. The actual builder isn't named in the thread — the closest thing to a name anywhere in this repo is `ro.build.user=mark` sitting in a build property, which is to say: some guy named Mark built this in 2019 and the internet has no further information on him.
 
 The original Odin tar contains:
 
@@ -27,26 +27,7 @@ The original Odin tar contains:
 
 ## Why does the recovery say Android 6.0.1?
 
-If you open `recovery_root/default.prop`, you'll find:
-
-```text
-ro.build.version.release=6.0.1
-ro.build.id=MOB30M
-ro.omni.version=6.0.1-20190812-j3y17lte-HOMEMADE
-ro.build.host=osboxes
-ro.build.user=mark
-ro.build.date=Mon Aug 12 23:49:43 BST 2019
-````
-
-That looks strange when you know the recovery works on Android 9, but it isn't actually a problem.
-
-A recovery image is its own small Linux environment. It doesn't inherit the Android version installed on the phone. For recovery to work, the important parts are things like the kernel's hardware support and the partition layout described by the fstab.
-
-In this case, the recovery was built in August 2019 from an older Omni 6.0.1-era `omni_j3y17lte` device tree. The fstab, kernel, and init/ramdisk configuration were then patched so the resulting recovery worked with the newer Pie-era partition layout and hardware state.
-
-The `ro.build.version.release=6.0.1` value was simply left behind from the older tree. It wasn't updated, but it doesn't determine which Android version the recovery can run against.
-
-That's why you can have an old-looking build property and a recovery that works perfectly fine on Pie. The latter has been confirmed by flashing it to a real J330F and using it to wipe, mount, and install a ROM.
+`recovery_root/default.prop` still reports `ro.build.version.release=6.0.1`, left over from the older Omni 6.0.1-era `omni_j3y17lte` tree this was built from in August 2019. It's stale, not broken — recovery is its own small Linux environment and doesn't inherit the phone's Android version. What actually determines whether it works is kernel hardware support and the fstab partition layout, both of which were patched for the Pie-era setup and confirmed by flashing to a real J330F.
 
 ## Extraction method
 
@@ -330,7 +311,7 @@ There may be device-specific recovery C++ HAL components that aren't obvious fro
 ## Credits
 
 * **ashyx** — posted and tested the original recovery release on XDA.
-* **mark** — appears to be the builder based on `ro.build.user=mark` in the recovery's embedded build properties.
-* **This repo's author** — performed the extraction, teardown, and documentation independently.
+* **Some guy named Mark** — `ro.build.user=mark` is the only trace of him anywhere in this repo. No last name, no contact info, no further clues. If you're out there, Mark, thanks for building this recovery in 2019 and leaving zero other footprints.
+* **[DirazCoder](https://github.com/DirazCoder)** — performed the extraction, teardown, and documentation independently.
 
 The original device tree was never published, so this repo exists to preserve the parts that could still be recovered from a working build and make them useful to the next person who has to work on this device.
