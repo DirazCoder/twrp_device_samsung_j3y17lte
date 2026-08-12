@@ -60,6 +60,17 @@ TARGET_BOARD_PLATFORM_GPU     := mali-T720-MP2
 TARGET_BOOTLOADER_BOARD_NAME  := universal7570
 TARGET_NO_BOOTLOADER          := true
 
+# Reboot menu — this Exynos platform has no distinct bootloader mode, so
+# "Reboot > Bootloader" was rebooting into nothing (confirmed against
+# recovery.img's ramdisk: portrait.xml defines separate Bootloader and
+# Download listitems, gated on tw_reboot_bootloader and tw_download_mode
+# respectively — neither flag was set here, so TWRP fell back to showing
+# Bootloader by default and never enabled the working Download path).
+# Samsung's actual equivalent is download/Odin mode, which sbin/twrp
+# already supports as `reboot download`.
+TW_HAS_DOWNLOAD_MODE     := true
+TW_NO_REBOOT_BOOTLOADER  := true
+
 # Using the prebuilt kernel below since no kernel source is synced into
 # this tree. If you sync Samsung's GPL kernel source for J330F, point
 # TARGET_KERNEL_SOURCE/CONFIG at it instead — don't guess the defconfig
