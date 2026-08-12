@@ -18,14 +18,23 @@ $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTIMG) $(INSTALLED_DTIMAGE_TARGET) $(re
 
 # AndroidBoard.mk defines INSTALLED_BOOTIMAGE_TARGET as a placeholder --
 # some core/Makefile targets in this build generation (ramdisk-recovery.cpio
-# among them) depend on it directly even though this tree never flashes a
-# real boot.img. That rule has to live here, not in AndroidBoard.mk: this
-# file (bootimg.mk) is included by core/Makefile via BOARD_CUSTOM_BOOTIMG_MK
-# well after AndroidBoard.mk is parsed, so a rule in AndroidBoard.mk that
-# referenced $(INSTALLED_RECOVERYIMAGE_TARGET) -- which this file defines,
-# a few lines up -- would evaluate that variable as still-empty at parse
-# time and drop the dependency edge entirely, letting ninja run the
-# placeholder before the real recovery.img exists.
-$(INSTALLED_BOOTIMAGE_TARGET): $(INSTALLED_RECOVERYIMAGE_TARGET)
-	@echo -e ${CL_GRN}"----- Making placeholder boot image (graph dependency only, not for flashing) ------"${CL_RST}
-	$(hide) cp -f $(INSTALLED_RECOVERYIMAGE_TARGET) $@
+# among them) reference it directly even though BOARD_USES_FULL_RECOVERY_IMAGE
+# means this tree never actually builds a delta-against-boot recovery, and
+# never flashes a real boot.img either way. That rule has to live here, not
+# in AndroidBoard.mk, because this file is included by core/Makefile via
+# BOARD_CUSTOM_BOOTIMG_MK well after AndroidBoard.mk is parsed.
+#
+# This must NOT depend on $(INSTALLED_RECOVERYIMAGE_TARGET). An earlier
+# version did (copying recovery.img into place as a shortcut), which closes
+# a cycle: core's ramdisk-recovery.cpio rule already depends on
+# INSTALLED_BOOTIMAGE_TARGET, so making that target depend back on
+# recovery.img -- which itself depends on ramdisk-recovery.img and
+# ramdisk-recovery.cpio -- gives ninja "recovery.img -> ramdisk-recovery.img
+# -> ramdisk-recovery.cpio -> boot.img -> recovery.img" and a hard failure
+# ("dependency cycle"), not a warning. The placeholder only needs to exist
+# as a file; it's never flashed, so there's nothing to gain by deriving its
+# content from recovery.img, and doing so is what breaks the build.
+$(INSTALLED_BOOTIMAGE_TARGET):
+	@echo -e ${CL_GRN}"----- Making placeholder boot image (unused stub, not for flashing) ------"${CL_RST}
+	$(hide) mkdir -p $(dir $@)
+	$(hide) touch $@
