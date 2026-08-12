@@ -8,6 +8,8 @@ That means the fstab, kernel, init scripts, properties, SELinux policy, and the 
 
 The recovery has also been **tested on real hardware**. It was flashed to a Samsung SM-J330F running Android 9 (Pie), where it successfully wiped and mounted partitions and installed a custom ROM. This isn't just a tree that happens to look correct on paper.
 
+**Update: this tree now compiles.** [TWRP 3.7.0](../../releases/tag/TWRP) is built from the corrected `BoardConfig.mk`/`device.mk` in this repo and has been flashed and confirmed working on a real J330F — full wipe, mount, and ROM install, same as the original 3.3.1-1 teardown, but built from source this time instead of extracted from someone else's image. Grab `recovery.tar` from the release page. If you're building OrangeFox for this device, start from 3.7.0's tree rather than 3.3.1-1 — it's the one with the fixes described below already applied.
+
 ## Where this came from
 
 The source image was:
@@ -331,73 +333,6 @@ kernel boot offsets, fstab structure — was cross-checked against the
 joephyu tree during this pass and matches. Those values are unchanged
 and now have two independent sources agreeing, not just one.
 
-## Corrected against a real published tree (aka the "well, that's embarrassing" section)
-
-After this repo's `BoardConfig.mk`/`device.mk`/`Android.mk` were first
-written from the teardown alone, a real published TWRP device tree for
-this exact codename was found:
-
-**`joephyu/android_device_samsung_j3y17lte`**
-https://github.com/joephyu/android_device_samsung_j3y17lte
-
-Unlike the Exynos7570 devices searched for earlier (this is not the same
-SoC as the J5/J7 2017 Exynos7870 trees, which are a different chip
-despite similar-looking codenames), this is a tree for the actual same
-device, apparently built and working. It was diffed line by line against
-this repo's files, and three real problems were found and fixed:
-
-1. **`TARGET_ARCH`/`TARGET_CPU_ABI` were changed to arm/32-bit here, based
-   on the joephyu tree — and that change was itself wrong.** This repo
-   originally had arm64 set, reasoned only from the kernel binary being
-   64-bit, which is a real gap in logic (kernel arch and userspace build
-   target are different things). But the fix applied at the time — copying
-   joephyu's 32-bit `arm`/`armeabi-v7a` setting — didn't actually check
-   whether that tree's target matches this recovery. It doesn't: joephyu's
-   tree is written for an Android 6.0-era Omni build, while this repo's own
-   recovery is TWRP 3.3.1-1, tested against Android 9 (Pie) — see "Why does
-   the recovery say Android 6.0.1?" above. Copying a 32-bit setting from a
-   6.0-era tree onto a Pie-era recovery isn't a like-for-like correction,
-   it's borrowing an answer from a different device generation.
-
-   This has since been checked properly: the actual `sbin/` binaries in
-   this ramdisk (`recovery`, `twrp`, `busybox`, `mke2fs`, `sgdisk`,
-   `make_ext4fs`, `simg2img`, `toolbox`) were extracted and run through
-   `file`, and all of them report `ELF 64-bit ... ARM aarch64 ...
-   interpreter /sbin/linker64`. That's genuinely 64-bit userspace, not a
-   64-bit kernel with 32-bit binaries on top. `TARGET_ARCH` is back to
-   `arm64` / `arm64-v8a`, this time backed by inspecting the actual
-   compiled binaries rather than either a stale prop string or an
-   unchecked borrow from a different tree's Android version.
-
-2. **`device.mk` inherited the wrong product base.** It called
-   `embedded.mk` (a minimal base meant for non-phone targets like TVs)
-   instead of `full.mk` plus language/GPS config. Corrected to match the
-   proven tree.
-
-3. **`TARGET_KERNEL_SOURCE` pointed at a path that was never synced.**
-   Left active, this would have made the build look for kernel source
-   that doesn't exist in this tree. Commented out; `TARGET_PREBUILT_KERNEL`
-   (the confirmed-working extracted kernel) is now the active default.
-
-A required file, `bootimg.mk`, was also missing entirely — `BoardConfig.mk`
-referenced it but it was never added. It's generic TWRP build machinery,
-not device-specific, and has been added.
-
-One more product-identity mismatch, unrelated to the joephyu diff: this
-tree's `device.mk`/`omni_j3y17lte.mk` had `PRODUCT_MODEL` hardcoded to
-`SM-J330FN`, copied straight from this ramdisk's own `default.prop`. If
-you're building for a J330F specifically, that's the wrong model string
-for your unit — it's been corrected to `SM-J330F`, with a note in both
-files that the source recovery this tree is built from is genuinely an
-FN build, so treat anything model-specific here as FN-sourced, not
-independently confirmed against an F.
-
-Everything this repo had independently confirmed from real hardware —
-boot/recovery partition sizes, display geometry, DTS board revision,
-kernel boot offsets, fstab structure — was cross-checked against the
-joephyu tree during this pass and matches. Those values are unchanged
-and now have two independent sources agreeing, not just one.
-
 ## Cross-checked against two more independent images
 
 Two more images, unrelated to both this repo's original teardown and the
@@ -495,6 +430,6 @@ There may be device-specific recovery C++ HAL components that aren't obvious fro
 
 * **ashyx** — posted and tested the original recovery release on XDA.
 * **Some guy named Mark** — `ro.build.user=mark` is the only trace of him anywhere in this repo. No last name, no contact info, no further clues. If you're out there, Mark, thanks for building this recovery in 2019 and leaving zero other footprints.
-* **[DirazCoder](https://github.com/DirazCoder)** — performed the extraction, teardown, and documentation independently.
+* **[DirazCoder](https://github.com/DirazCoder)** — performed the extraction, teardown, and documentation independently, then took the corrected tree through a real build and flashed the result (TWRP 3.7.0) on hardware.
 
 The original device tree was never published, so this repo exists to preserve the parts that could still be recovered from a working build and make them useful to the next person who has to work on this device.
