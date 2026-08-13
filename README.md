@@ -1,6 +1,6 @@
 # TWRP recovery tree — Samsung Galaxy J3 2017 (J330F/FN/G, codename j3y17lte)
 
-ok real talk, this is NOT an original AOSP/TWRP source tree and i gotta be upfront about that from line one.
+this is NOT an original AOSP/TWRP source tree and i gotta be upfront about that from line one.
 
 so the original builder never actually published a device tree for this recovery. the release thread just said "DEVICE TREE: soon" and then... nothing. that tree never showed up, guess it's soon forever now. so what i did instead was tear down the released, working `recovery.img` and pull the useful pieces out somewhere people can actually reuse them. fstab, kernel, init scripts, properties, SELinux policy, all of it, preserved as reference material.
 
