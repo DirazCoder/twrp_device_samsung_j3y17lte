@@ -13,14 +13,19 @@ $(call inherit-product-if-exists, vendor/samsung/j3y17lte/j3y17lte-vendor.mk)
 DEVICE_PACKAGE_OVERLAYS += device/samsung/j3y17lte/overlay
 
 # Recovery ramdisk files below are pulled straight from the extracted
-# working ramdisk, not reconstructed. Exception: default.prop (if you add
-# it) needs ro.omni.* and ro.build.version.release=6.0.1 stripped first —
-# stale branding from the old source tree, not functionally required.
+# working ramdisk, not reconstructed. Exception: default.prop, which is
+# the extracted file with ro.build.version.release/sdk corrected from the
+# stale 6.0.1/23 (leftover Omni 6.0.1-era branding) to the real 9/28 this
+# recovery was actually built and tested against, and ro.product.model /
+# ro.product.cpu.abilist corrected to match the FN->F and arm->arm64
+# fixes already applied elsewhere in this tree. See README, "Why does the
+# recovery say Android 6.0.1?".
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/etc/recovery.fstab:recovery/root/etc/recovery.fstab \
     $(LOCAL_PATH)/recovery/root/init.recovery.hlthchrg.rc:recovery/root/init.recovery.hlthchrg.rc \
     $(LOCAL_PATH)/recovery/root/init.recovery.service.rc:recovery/root/init.recovery.service.rc \
-    $(LOCAL_PATH)/recovery/root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc
+    $(LOCAL_PATH)/recovery/root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc \
+    $(LOCAL_PATH)/recovery/root/default.prop:recovery/root/default.prop
 
 ifeq ($(TARGET_PREBUILT_KERNEL),)
 	LOCAL_KERNEL := $(LOCAL_PATH)/kernel
