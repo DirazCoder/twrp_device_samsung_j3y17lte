@@ -311,7 +311,7 @@ everything the working recovery uses is already present in the ramdisk and refle
 ## credits
 
 * **ashyx** — posted and tested the original recovery release on XDA.
-* **some guy named Mark** — `ro.build.user=mark` is literally the only trace of him anywhere in this repo. no last name, no contact info, no other clues. if you're out there - Mark — built the original ramdisk/TWRP 3.3.1-1 userspace this tree's recovery_root/ was extracted from (kernel since swapped for Samsung's stock 3.18.91 build, no longer in this tree)
+* **some guy named Mark** — `ro.build.user=mark` is literally the only trace of him anywhere in this repo. no last name, no contact info, no other clues. if you're out there - Mark — built the original ramdisk/TWRP 3.3.1-1 userspace and the original 2017 kernel this tree's `recovery_root/`, `kernel`, and `dt.img` were extracted from — still in this tree.
 * **me ([DirazCoder](https://github.com/DirazCoder))** — did the extraction, teardown, and documentation myself, then took the corrected tree through a real build and flashed the result (TWRP 3.7.0) on actual hardware. and yeah my back hurts now but it was worth it, this beats using that clunky unmaintained 3.3.1-1 image any day.
 
 the original device tree never got published, so this repo exists to preserve what could still be recovered from a working build and make it useful for whoever's next stuck working on this device.
