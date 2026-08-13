@@ -7,15 +7,6 @@ on fs
     write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
     write /sys/class/android_usb/android0/iProduct ${ro.product.model}
     write /sys/class/android_usb/android0/iSerial ${ro.serialno}
-    # This block used to configure the gadget and stop here, leaving
-    # it disabled at boot until some later sys.usb.config property
-    # trigger flipped enable on. persist.sys.usb.config=adb (set in
-    # default.prop) does fire on property:sys.usb.config=adb below, but
-    # that block also races init.rc's own service.adb.root=1 handler
-    # for the same android0/enable node (see note on that block below).
-    # Enable directly here too so the device enumerates over USB from
-    # boot without depending on that race resolving in our favor.
-    write /sys/class/android_usb/android0/enable 1
 
 on property:sys.usb.config=none
     write /sys/class/android_usb/android0/enable 0
