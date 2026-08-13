@@ -7,6 +7,15 @@ on fs
     write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
     write /sys/class/android_usb/android0/iProduct ${ro.product.model}
     write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+    # This block used to configure the gadget and stop here, leaving
+    # it disabled at boot until some later sys.usb.config property
+    # trigger flipped enable on. persist.sys.usb.config=adb (set in
+    # default.prop) does fire on property:sys.usb.config=adb below, but
+    # that block also races init.rc's own service.adb.root=1 handler
+    # for the same android0/enable node (see note on that block below).
+    # Enable directly here too so the device enumerates over USB from
+    # boot without depending on that race resolving in our favor.
+    write /sys/class/android_usb/android0/enable 1
 
 on property:sys.usb.config=none
     write /sys/class/android_usb/android0/enable 0
@@ -17,18 +26,23 @@ on property:sys.usb.config=mass_storage,adb
     write /sys/class/android_usb/android0/functions ${sys.usb.config}
     write /sys/class/android_usb/android0/enable 1
 
-# The kernel's composite gadget driver registers this device's MTP
-# function under the name "mtp_usb" (confirmed via /dev/mtp_usb in
-# ueventd.rc and the f_mtp driver's internal "mtp_usb" name string in
-# the kernel image), not the generic "mtp" that upstream device trees
-# use. android_usb's functions sysfs write only enables tokens it can
-# match against a registered function name, so forwarding
-# ${sys.usb.config} verbatim (mtp,adb) silently drops the unmatched
-# "mtp" token and leaves only adb active. Hardcode the real name here
-# instead of forwarding the property.
+# CORRECTED: a previous version of this block wrote "mtp_usb,adb" here
+# based on a comment claiming the kernel registers MTP under the name
+# "mtp_usb". Checked directly against this device's kernel source
+# (drivers/usb/gadget/android.c, f_mtp.c): the function is registered
+# as "mtp" (DRIVER_NAME "mtp", .name = "mtp"). "mtp_usb" only appears
+# as the /dev/mtp_usb character-device path the MTP function exposes
+# to userspace once active -- a different name in a different
+# namespace, not what android_usb's functions sysfs write matches
+# against. Writing "mtp_usb" as a function name here would fail to
+# match any registered function, same silent-failure this comment
+# thought it was avoiding. Forwarding ${sys.usb.config} verbatim is
+# fine as long as it's actually "mtp,adb" (matches "mtp" + "adb"), so
+# this block is written explicitly rather than left to forward the
+# property, purely so the working values are visible here.
 on property:sys.usb.config=mtp,adb
     write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/functions mtp_usb,adb
+    write /sys/class/android_usb/android0/functions mtp,adb
     write /sys/class/android_usb/android0/enable 1
     start adbd
 
