@@ -250,6 +250,30 @@ what came out of that:
 
 the hovatek image's `/data` fstab line is missing the `encryptable=footer`/`length=-16384` flags that this tree's `/data` line carries. keeping those flags — they match the footer-based FDE this device actually uses, and the built, flashed TWRP 3.7.0 works correctly with encrypted `/data` because of it.
 
+## fixed since the XDA original: Android 6.0.1 string
+
+the extracted `default.prop` now ships in this repo (`recovery/root/default.prop`) instead of just being described in "why does the recovery say Android 6.0.1?" above. it's the real extracted file, values unchanged, except:
+
+* `ro.build.version.release` / `ro.build.version.sdk`: `6.0.1`/`23` → `9`/`28`, matching the Pie hardware this recovery's actually tested on instead of the stale Omni 6.0.1-era branding
+* `ro.product.model`: `SM-J330FN` → `SM-J330F`, matching the fix already applied to `device.mk`/`omni_j3y17lte.mk` — the old default.prop still had the un-corrected FN value
+* `ro.product.cpu.abilist`/`abilist32`/`abilist64`: was `armeabi-v7a,armeabi` (32-bit) despite `TARGET_ARCH := arm64` — same stale-tree issue, corrected to match the confirmed-64-bit binaries
+
+`mark`'s build date, username, `test-keys`, and all the Omni-branding fields are untouched — that's real provenance, not a bug. purely cosmetic fix, doesn't touch kernel, SELinux, or partition behavior.
+
+## attempted: decrypt without wiping /data
+
+TWRP's own crypto (`libcryptfsfde.so`, in `sbin/` of the working recovery) does standard AOSP scrypt + keymaster0/1 HAL signing. checked the kernel source for this device and this device's actual encryption doesn't go through that path — it goes through Samsung's own FMP hardware crypto engine, key-set via `exynos_smc(SMC_CMD_FMP, FMP_KEY_SET, ...)` straight into TrustZone (`drivers/crypto/fmp/fmp_mmc.c` in the companion kernel repo). also checked Samsung's own stock recovery image (`SRPQC17A001RU`, the same one the `--board` string above came from) — it has zero crypto binaries and an unencrypted `/data` fstab line, meaning Samsung's own OEM recovery doesn't decrypt for browsing either, it just wipes. TrustZone key derivation itself is closed-source; no GPL source anywhere covers it.
+
+what *is* buildable without needing that secret: TWRP has a real, documented fallback for exactly this situation — [`TW_CRYPTO_USE_SYSTEM_VOLD`](https://github.com/omnirom/android_bootable_recovery/commit/71c6c50d0da1f32dd18a749797e88de2358c5ba1), added upstream by nkk71/CaptainThrowback. instead of reimplementing Samsung's crypto, it starts the real `/system/bin/vold` from the already-installed ROM inside recovery and lets *that* do the decrypt, since it's Samsung's actual working FMP-aware binary, not a guess at one. `BoardConfig.mk` now sets `TW_CRYPTO_USE_SYSTEM_VOLD := true`. no extra per-service `.rc` file was needed in this device tree — that's only required for devices needing an extra daemon (Qualcomm devices typically need `qseecomd`), and Exynos FMP key-set is a direct kernel SMC call, not a separate userspace service.
+
+real limits on this, stated plainly:
+
+* only works **after** a ROM is already installed and booted at least once — `/system` has to mount and have real `vold`/lib files on it. this cannot decrypt a `/data` partition on a fresh Odin flash with no working system behind it.
+* falls back only if TWRP's own decrypt attempt fails first — it's not a replacement path, `TW_INCLUDE_CRYPTO` stays on.
+* **completely unverified on real hardware.** I don't have a way to confirm this actually decrypts without a phone in hand to test it on. if you try this and it works (or doesn't), open an issue — that's real information this repo doesn't have yet.
+
+what this is *not*: a TrustZone exploit, a bypass, or a "format data" workaround dressed up as something else. every "no-wipe decrypt" guide floating around XDA for devices without proper Keymaster HAL support turns out to be one of those three things. this is neither — it's borrowing Samsung's own already-correct code instead of trying to replicate what it does.
+
 ## known limitations
 
 ### Mali T720MP2 userspace
