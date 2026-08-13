@@ -68,22 +68,45 @@ TW_NO_REBOOT_BOOTLOADER  := true
 # Using the prebuilt kernel below since no kernel source is synced into
 # this tree. If you sync Samsung's GPL kernel source for J330F, point
 # TARGET_KERNEL_SOURCE/CONFIG at it instead and use its defconfig name.
+# 3.18.14 (Nov 2017, built by "mark"), torn down from recovery_orig.img --
+# see the dt.img comment below for why this stayed instead of the newer
+# 3.18.91 stock kernel.
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/kernel
 TARGET_PREBUILT_DTB    := $(DEVICE_PATH)/dt.img
-# dt.img extracted from Samsung's stock J330FXXS4CUD4 boot.img (Apr 2021),
-# same build as the kernel above -- both must come from the same firmware
-# build together. An earlier version of this file paired this dt.img's
-# 2021 stock format with the original 2017/2019-era recovery kernel (or
-# vice versa): the panel init sequence changed from a decon_board_list
-# node (raw indexed GPIOs) to decon_board (named GPIO properties,
-# gpio_panel_enp/enn/gpio_blic_on/gpio_lcd_rst) somewhere in that gap,
-# and a mismatched pairing produced a backlight-on-but-blank-panel boot
-# failure on real hardware -- confirmed by decompiling both DTBs and
-# diffing the panel power-sequence nodes, not just inferred from symptoms.
-# Magic bytes are "DTBH" v2, 4 entries — Samsung's multi-DTB table
-# format, not corrupt data. Setting this variable alone doesn't make
-# ninja build dt.img; see AndroidBoard.mk
+# dt.img extracted from recovery_orig.img's original 2019-era ramdisk
+# teardown, paired with the 2017 kernel above -- both from the same
+# torn-down recovery build. Magic bytes are "DTBH" v2, 4 entries —
+# Samsung's multi-DTB table format, not corrupt data. Setting this
+# variable alone doesn't make ninja build dt.img; see AndroidBoard.mk
 # for the rule that actually wires it in.
+#
+# REVERTED (see kernel comment above): this tree briefly shipped
+# Samsung's stock J330FXXS4CUD4 kernel (3.18.91, Apr 2021) paired with
+# its correctly-matched stock dt.img. Both files were confirmed
+# byte-identical to the stock firmware and correctly paired -- panel
+# power-sequence timing in that dt.img (decon_board node: GPIO names,
+# regulator names, all delay values) was verified identical to real
+# production DTS source for this board (j3y17lte-dev tree), not just
+# "looked right." Despite that, real hardware exhibited a repeating
+# backlight on/off cycle with the panel never displaying, while the
+# rest of the system (USB gadget, kernel) stayed up -- not a boot loop.
+# Traced to this kernel's synaptics_td4x00 incell touch driver
+# (drivers/input/touchscreen/synaptics_td4x00/synaptics_i2c_rmi.c):
+# it treats certain touch-IC status codes as ESD events and calls
+# incell_blank_unblank() (decon_7570/panels/td4100_j3y17_lcd_ctrl.c),
+# which does a full fb_blank(POWERDOWN)/fb_blank(UNBLANK) cycle,
+# repeatedly, each time the touch IC reports the same status. USB also
+# failed mid-enumeration (Windows: Code 43, configuration descriptor
+# request failed) during this cycle, consistent with the same
+# disruption reaching the USB PHY/gadget, not a separate bug.
+# Root cause of *why* the touch IC reports that status on this kernel
+# is still unresolved -- not a DTB authoring error, not a build
+# mismatch, both ruled out with direct evidence. Reverted to the known
+# working 2017/2019 pair rather than ship a kernel with an open,
+# timing-sensitive hardware fault. Don't re-attempt this swap without
+# either a live dmesg/kmsg capture during the fault or real hardware
+# debug access (UART) -- static source/DTB comparison is exhausted on
+# this one.
 
 # Partitions — boot/recovery sizes confirmed via the bootimg header math.
 # system/cache/userdata sizes are standard for this device class.
