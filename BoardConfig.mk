@@ -111,6 +111,24 @@ BOARD_USES_FULL_RECOVERY_IMAGE := true
 # FDE); /recovery carries a matching display/backup flag.
 TARGET_RECOVERY_FSTAB           := $(DEVICE_PATH)/recovery/root/etc/recovery.fstab
 TW_INCLUDE_CRYPTO               := true
+
+# Fallback only: TWRP's own libcryptfsfde.so does scrypt + generic
+# keymaster0/1 HAL signing, which doesn't know about this device's
+# Exynos FMP hardware crypto path (drivers/crypto/fmp in the kernel
+# source, key-set via exynos_smc(SMC_CMD_FMP, ...) into TrustZone). If
+# TWRP's own decrypt attempt fails, this makes it fall back to starting
+# the real /system/bin/vold from the already-installed ROM and asking
+# it to decrypt instead — since that's Samsung's actual, working
+# FMP-aware vold, not a reimplementation. Requires /system to mount
+# successfully in recovery first, and only helps post-first-boot, on an
+# already-installed system; it cannot decrypt a /data partition with no
+# working ROM behind it. No Exynos equivalent of Qualcomm's
+# TW_CRYPTO_USE_SYSTEM_VOLD := qseecomd service dependency is needed
+# here, since FMP key-set is a direct kernel SMC call, not a separate
+# userspace daemon. UNTESTED on real hardware — confirm on-device before
+# relying on it; see README.
+TW_CRYPTO_USE_SYSTEM_VOLD       := true
+
 TW_INTERNAL_STORAGE_PATH        := "/data/media"
 TW_INTERNAL_STORAGE_MOUNT_POINT := "data"
 TW_EXTERNAL_STORAGE_PATH        := "/external_sd"
