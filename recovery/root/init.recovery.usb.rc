@@ -46,8 +46,15 @@ on property:sys.usb.config=mtp,adb
     write /sys/class/android_usb/android0/enable 1
     start adbd
 
+# FIXED: this block used to write enable via ${service.adb.root} instead
+# of a hardcoded 1. service.adb.root controls whether adbd runs as root,
+# not whether the USB gadget is enabled -- at boot it's frequently unset
+# or 0, which meant this write could disable the gadget right after the
+# line above enabled it, leaving the device silently un-enumerable over
+# USB despite functions being set correctly. Matches the same fix already
+# applied to the "on fs" block above for the identical enable-node race.
 on property:sys.usb.config=adb
     write /sys/class/android_usb/android0/enable 0
     write /sys/class/android_usb/android0/functions ${sys.usb.config}
-    write /sys/class/android_usb/android0/enable ${service.adb.root}
+    write /sys/class/android_usb/android0/enable 1
     start adbd
