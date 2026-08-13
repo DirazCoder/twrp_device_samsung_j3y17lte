@@ -70,10 +70,19 @@ TW_NO_REBOOT_BOOTLOADER  := true
 # TARGET_KERNEL_SOURCE/CONFIG at it instead and use its defconfig name.
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/kernel
 TARGET_PREBUILT_DTB    := $(DEVICE_PATH)/dt.img
-# dt.img extracted from recovery_orig.img at the offset given by the
-# bootimg header's own dt_size field. Magic bytes are "DTBH" v2, 4
-# entries — Samsung's multi-DTB table format, not corrupt data. Setting
-# this variable alone doesn't make ninja build dt.img; see AndroidBoard.mk
+# dt.img extracted from Samsung's stock J330FXXS4CUD4 boot.img (Apr 2021),
+# same build as the kernel above -- both must come from the same firmware
+# build together. An earlier version of this file paired this dt.img's
+# 2021 stock format with the original 2017/2019-era recovery kernel (or
+# vice versa): the panel init sequence changed from a decon_board_list
+# node (raw indexed GPIOs) to decon_board (named GPIO properties,
+# gpio_panel_enp/enn/gpio_blic_on/gpio_lcd_rst) somewhere in that gap,
+# and a mismatched pairing produced a backlight-on-but-blank-panel boot
+# failure on real hardware -- confirmed by decompiling both DTBs and
+# diffing the panel power-sequence nodes, not just inferred from symptoms.
+# Magic bytes are "DTBH" v2, 4 entries — Samsung's multi-DTB table
+# format, not corrupt data. Setting this variable alone doesn't make
+# ninja build dt.img; see AndroidBoard.mk
 # for the rule that actually wires it in.
 
 # Partitions — boot/recovery sizes confirmed via the bootimg header math.
