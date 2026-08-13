@@ -17,9 +17,18 @@ on property:sys.usb.config=mass_storage,adb
     write /sys/class/android_usb/android0/functions ${sys.usb.config}
     write /sys/class/android_usb/android0/enable 1
 
+# The kernel's composite gadget driver registers this device's MTP
+# function under the name "mtp_usb" (confirmed via /dev/mtp_usb in
+# ueventd.rc and the f_mtp driver's internal "mtp_usb" name string in
+# the kernel image), not the generic "mtp" that upstream device trees
+# use. android_usb's functions sysfs write only enables tokens it can
+# match against a registered function name, so forwarding
+# ${sys.usb.config} verbatim (mtp,adb) silently drops the unmatched
+# "mtp" token and leaves only adb active. Hardcode the real name here
+# instead of forwarding the property.
 on property:sys.usb.config=mtp,adb
     write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/functions ${sys.usb.config}
+    write /sys/class/android_usb/android0/functions mtp_usb,adb
     write /sys/class/android_usb/android0/enable 1
     start adbd
 

@@ -2,11 +2,8 @@ LOCAL_PATH := $(call my-dir)
 
 FLASH_IMAGE_TARGET ?= $(PRODUCT_OUT)/recovery.tar
 
-# dt.img is now a real kernel-build output (see BoardConfig.mk's
-# TARGET_KERNEL_SOURCE), available at INSTALLED_DTIMAGE_TARGET once the
-# kernel build rules run — no longer a static TARGET_PREBUILT_DTB path.
-ifdef INSTALLED_DTIMAGE_TARGET
-	BOARD_MKBOOTIMG_ARGS += --dt $(INSTALLED_DTIMAGE_TARGET)
+ifdef TARGET_PREBUILT_DTB
+	BOARD_MKBOOTIMG_ARGS += --dt $(TARGET_PREBUILT_DTB)
 endif
 
 $(INSTALLED_RECOVERYIMAGE_TARGET): $(MKBOOTIMG) $(INSTALLED_DTIMAGE_TARGET) $(recovery_kernel) $(recovery_ramdisk)
