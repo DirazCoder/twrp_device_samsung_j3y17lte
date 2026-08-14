@@ -1,21 +1,14 @@
 # usb_reenable: delayed re-toggle of the USB gadget's "enable" node so
 # dwc3_gadget_pullup() gets a second chance after VBUS is actually up.
 # See recovery/root/init.recovery.usb.rc for why this exists.
-#
-# The service was previously denied because /sbin/sh had no domain
-# transition defined from init — it inherited rootfs's own label and
-# init refused to start it. This gives the replacement script its own
-# narrow domain instead of reusing recovery's (which has a much wider
-# permission set than this script needs).
 
-# This runs from the recovery ramdisk (rootfs), not /system -- the
-# ramdisk doesn't carry real per-file SELinux xattrs, so a file-context
-# based domain_auto_trans/init_daemon_domain transition won't apply
-# here (that mechanism needs a labeled file on a mounted filesystem).
-# Ramdisk services set their domain directly via "seclabel" in the
-# service definition instead -- see init.recovery.usb.rc, matches how
-# ueventd/adbd/shell handle the same constraint in AOSP's own init.rc.
 type usb_reenable, domain;
+
+# Grant init permission to transition into the usb_reenable domain.
+# Without this, init fails to exec the script (avc: denied { transition } ... tclass=process).
+allow init usb_reenable:process transition;
+dontaudit init usb_reenable:process noatsecure;
+allow init usb_reenable:process { siginh rlimitinh };
 
 # Let the domain actually run the script's shell (#!/sbin/sh) and the
 # toybox applets it calls (sleep, echo redirects via /sbin/sh built-ins,
@@ -24,8 +17,7 @@ allow usb_reenable rootfs:file rx_file_perms;
 allow usb_reenable toolbox_exec:file rx_file_perms;
 
 # The only sysfs write this domain actually needs: android_usb's enable
-# and functions nodes. Confirmed class/label via the same rule already
-# granted to recovery (allow recovery sysfs_android_usb:file w_file_perms;).
+# and functions nodes.
 allow usb_reenable sysfs_android_usb:file w_file_perms;
 
 # Reading back sys.usb.config for the echo ${sys.usb.config} substitution.
