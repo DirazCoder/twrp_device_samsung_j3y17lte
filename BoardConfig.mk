@@ -180,3 +180,9 @@ TARGET_RECOVERY_PIXEL_FORMAT := "ABGR_8888"
 
 TARGET_USES_LOGD    := true
 TWRP_INCLUDE_LOGCAT := true
+
+# usb_reenable domain -- see sepolicy/usb_reenable.te. Previously the
+# VBUS-retry service was denied outright (no domain transition defined
+# for the ramdisk shell it ran under); this gives it its own narrow,
+# purpose-built domain instead.
+BOARD_SEPOLICY_DIRS += $(DEVICE_PATH)/sepolicy

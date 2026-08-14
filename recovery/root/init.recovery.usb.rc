@@ -54,23 +54,33 @@ on property:sys.usb.config=adb
 # dwc->vbus_session is already true when it's called (drivers/usb/dwc3/
 # gadget.c). The blocks above write enable=1 as soon as sys.usb.config
 # is set, which on this board can land ~2-3s into boot -- well before
-# the muic/vbus notifier reports VBUS present (~12s in captured logs).
-# When that happens, pullup() silently no-ops and nothing re-arms it,
-# so the later dwc3_gadget_vbus_session() call finds softconnect still
-# 0 and never runs dwc3_gadget_run_stop -- gadget never signals attach.
-# The old SDK23 reference TWRP masked this by re-writing sys.usb.config
-# via its own MTP auto-start retry logic, coincidentally landing after
-# VBUS came up. This re-asserts the same way, from init instead of
-# relying on that binary-specific behavior: wait past the point VBUS
-# is expected to be up, then re-toggle enable so pullup() runs again
-# with vbus_session already true.
-# NOTE: this runs in a real shell (toybox sh), not init's own parser --
-# "write" is an init built-in, not a shell command, so this uses echo
-# redirection instead. Confirmed working in this device's toybox sh
-# earlier in this debugging session (bare newlines needed ";" too --
-# same shell, applies here as well).
-service usb_reenable /sbin/sh -c "sleep 14; echo 0 > /sys/class/android_usb/android0/enable; echo ${sys.usb.config} > /sys/class/android_usb/android0/functions; echo 1 > /sys/class/android_usb/android0/enable"
+# the muic/vbus notifier reports VBUS present (~12-14s in captured
+# logs). When that happens, pullup() silently no-ops and nothing
+# re-arms it, so the later dwc3_gadget_vbus_session() call finds
+# softconnect still 0 and never runs dwc3_gadget_run_stop -- gadget
+# never signals attach (confirmed directly in captured usb_debug.log:
+# "dwc3_gadget_vbus_session: is_active = 1, softconnect = 0").
+#
+# The old SDK23 reference TWRP happens to avoid this because its
+# Enable_MTP() retry logic (partitionmanager.cpp) re-toggles the same
+# enable node multiple times, with its last cycle landing close enough
+# to VBUS (~9.6s in the reference log vs. VBUS at ~13.2s) that the
+# gadget is still freshly enabled when VBUS arrives. This device's
+# current TWRP source calls the same Enable_MTP() path but only once
+# (~6.3s), too early to still be valid by the time VBUS shows up.
+#
+# This re-asserts the enable node directly from init, timed past the
+# VBUS arrival measured on this board, instead of depending on how
+# many times an unrelated MTP retry cycle happens to fire.
+#
+# Runs as a dedicated script (not an inline /sbin/sh -c string) so
+# sepolicy/usb_reenable.te can label and scope just this one file
+# rather than the shared /sbin/sh binary other things also exec.
+# Previously this was denied outright (no domain transition defined
+# for /sbin/sh from init) -- see sepolicy/usb_reenable.te for the fix.
+service usb_reenable /sbin/usb_reenable.sh
     oneshot
+    seclabel u:r:usb_reenable:s0
 
 on boot
     start usb_reenable
