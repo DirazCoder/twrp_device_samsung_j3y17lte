@@ -262,7 +262,7 @@ the extracted `default.prop` now ships in this repo (`recovery/root/default.prop
 
 ## fixed: USB not enumerating at all in recovery
 
-reported symptom: phone plugged into a PC while in TWRP produces literally nothing — no USB sound, no Device Manager entry — but the same phone enumerates fine booted normally into Android. that rules out cable/port/driver issues (would also break normal boot) and points specifically at recovery's own USB gadget init.
+known symptom: phone plugged into a PC while in TWRP produces literally nothing — no USB sound, no Device Manager entry — but the same phone enumerates fine booted normally into Android. that rules out cable/port/driver issues (would also break normal boot) and points specifically at recovery's own USB gadget init.
 
 checked `init.recovery.usb.rc` against the real, unmodified `init.rc` from this repo's extracted TWRP ramdisk and found two real bugs:
 
@@ -293,6 +293,25 @@ real limits on this, stated plainly:
 * **completely unverified on real hardware.** I don't have a way to confirm this actually decrypts without a phone in hand to test it on. if you try this and it works (or doesn't), open an issue — that's real information this repo doesn't have yet.
 
 what this is *not*: a TrustZone exploit, a bypass, or a "format data" workaround dressed up as something else. every "no-wipe decrypt" guide floating around XDA for devices without proper Keymaster HAL support turns out to be one of those three things. this is neither — it's borrowing Samsung's own already-correct code instead of trying to replicate what it does.
+
+## known issues
+
+### MTP, adb sideload, and adb connect — no USB enumeration, unresolved
+
+reported (and reproduced against `reference/recovery_orig.img` too — it's not something introduced by the tree's own changes): device plugged into a PC while in recovery produces nothing on the PC side. no `lsusb` entry, no `adb devices` entry, no MTP mount. not a "fails after connecting" problem, it's not connecting at all.
+
+this is the same root cause covered above in "fixed: USB not enumerating at all in recovery" — the `enable 1` fix for `init.recovery.usb.rc`'s `on fs` block and the `mtp,adb` function-name correction are both already in this tree. if you're still seeing zero enumeration after pulling latest, here's what's actually been ruled out vs. not:
+
+**ruled out:**
+* cable/port/driver issue — same phone enumerates fine booted normally into Android, so it's specific to recovery's USB gadget init, not the PC side.
+* the `mtp_usb` vs `mtp` function-name bug — corrected in this tree, confirmed against kernel source (`f_mtp.c`).
+* the `enable 0` with no matching `enable 1` in the `on fs` block — also corrected.
+
+**not ruled out, still the leading suspect:** the property-trigger race flagged in that same earlier section — `init.recovery.usb.rc`'s `sys.usb.config`-triggered block and `init.rc`'s `service.adb.root=1` handler both write to `android_usb/android0/enable` with no defined ordering between the two files. the `enable 1` patch removes recovery's *own* dependency on that race resolving in its favor, but if `init.rc`'s handler is what's actually losing the race and disabling the node afterward, that's a second write happening after the fix takes effect, not something the fix touches at all.
+
+what would actually confirm this one way or the other: a `recovery.log` or on-screen TWRP log captured off real hardware, showing the actual order those two blocks fire in. that's not something this repo has — see the honest-limitation note in the fixed-USB section above, same blocker: no enumeration means no `adb pull` to grab the log.
+
+if you're hitting this and can get a serial console or screenshot TWRP's own log screen, that's the single most useful thing you could open an issue with. short of that, retrying the same build against a different cable/port/PC isn't going to surface anything new here — the failure's on the device's init sequence, not the host side. "worked after retrying" on a *different* device/image doesn't imply this one will resolve the same way. if it does start working intermittently (some enumerations succeed, some don't), that's useful info too — a race that sometimes wins looks different from one that's structurally broken every time, and which one this is isn't confirmed yet.
 
 ## known limitations
 
