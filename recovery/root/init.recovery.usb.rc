@@ -49,3 +49,28 @@ on property:sys.usb.config=adb
     write /sys/class/android_usb/android0/functions ${sys.usb.config}
     write /sys/class/android_usb/android0/enable 1
     start adbd
+
+# VBUS-race retry: dwc3_gadget_pullup() only sets dwc->softconnect if
+# dwc->vbus_session is already true when it's called (drivers/usb/dwc3/
+# gadget.c). The blocks above write enable=1 as soon as sys.usb.config
+# is set, which on this board can land ~2-3s into boot -- well before
+# the muic/vbus notifier reports VBUS present (~12s in captured logs).
+# When that happens, pullup() silently no-ops and nothing re-arms it,
+# so the later dwc3_gadget_vbus_session() call finds softconnect still
+# 0 and never runs dwc3_gadget_run_stop -- gadget never signals attach.
+# The old SDK23 reference TWRP masked this by re-writing sys.usb.config
+# via its own MTP auto-start retry logic, coincidentally landing after
+# VBUS came up. This re-asserts the same way, from init instead of
+# relying on that binary-specific behavior: wait past the point VBUS
+# is expected to be up, then re-toggle enable so pullup() runs again
+# with vbus_session already true.
+# NOTE: this runs in a real shell (toybox sh), not init's own parser --
+# "write" is an init built-in, not a shell command, so this uses echo
+# redirection instead. Confirmed working in this device's toybox sh
+# earlier in this debugging session (bare newlines needed ";" too --
+# same shell, applies here as well).
+service usb_reenable /sbin/sh -c "sleep 14; echo 0 > /sys/class/android_usb/android0/enable; echo ${sys.usb.config} > /sys/class/android_usb/android0/functions; echo 1 > /sys/class/android_usb/android0/enable"
+    oneshot
+
+on boot
+    start usb_reenable
